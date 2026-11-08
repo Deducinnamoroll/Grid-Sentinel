@@ -38,6 +38,28 @@ Verification: all 12 originally-affected rows confirmed populated after the fix,
 
 ---
 
+## Source-side share and FVI errors, fixed 2026-11-08
+
+Found while building the dashboard tabs: `share_res_pct` disagreed with `gen_res_mu / gen_total_mu * 100` by more than 1 point on 8 days, `share_nonfossil_pct` disagreed with `(gen_hydro_mu + gen_nuclear_mu + gen_res_mu) / gen_total_mu * 100` on 12 days, and `freq_fvi` read 49.215 on 2021-03-02 (every other day is below 0.43).
+
+Opening each raw report showed that, in every case except two, the parser had copied what NLDC printed. The errors are in the reports themselves:
+
+- **2019 and 2022 PDFs** (2019-11-18, 2022-06-20, 06-28, 08-18, 10-04, 11-08): the "Share of RES" / "Share of Non-fossil" rows don't match the sourcewise table right above them, at the regional level too (20.06.22 prints NR 8.45% against 151 / 1154 = 13.1%). They look like share rows left over from an earlier draft of the table.
+- **XLS era** (2023-03-30, 07-08, 09-01, 09-03, 2024-03-12, 04-02, 12-18, 2025-06-04): the share cells look like formulas with outdated cached values. 12.03.24 prints 96.76% RES and 97.04% non-fossil; 18.12.24's "% Share" column is shuffled (Hydro 76.6%), and its share row repeats that column's RES value.
+- **2021-03-02**: the PDF's FVI cell holds 49.215, a frequency in Hz typed into the wrong column. The true FVI can't be recovered from the report.
+- **Real parser slips** (2019-03-27, 2019-03-28): the non-fossil label wraps over two lines in these PDFs, and the value came out as 8.0 instead of ~18.
+
+On all of these days the gen rows add up to the printed Total, so the gen columns are the reliable side. Two days have a Total that doesn't match its own components (2022-11-08: components sum to 3987, Total 3939; 2023-09-01: 5612 against 5317.2). That is left as printed, and the shares there are computed against the printed Total, which is what `validate.py` checks.
+
+**Fix:** `_reconcile_daily()`, added identically to `parse_psp_pdf_xls_file1.py`, `parse_psp_pdf_xls_file2.py` and `parse_psp_xls_pdf_file3.py`, and called from `parse_file()` (file3 also calls it on the daily dict it broadcasts onto SCADA slots). It:
+
+1. recomputes `share_res_pct` / `share_nonfossil_pct` from the gen columns (rounded to 2 dp) when the printed value is missing or off by more than `SHARE_TOL_PP` (1.0 point), and logs the date and both values;
+2. nulls `freq_fvi` outside `[0, FVI_MAX]` (5.0) and logs it.
+
+The existing CSVs (`study1_daily`, `study1_hourly`, `study2_scada`) were corrected in place with the same rules rather than through a full 15-45 min rebuild, reading with `float_precision="round_trip"` so no other cell changes. Corrected: 17 daily rows, the same days in hourly (except 2024-12-18 and 2025-06-04, which are past the hourly file's end), and 2024-12-18 in SCADA. `Pipeline/validate.py` now fails if either problem comes back.
+
+---
+
 ## Usage
 
 ```

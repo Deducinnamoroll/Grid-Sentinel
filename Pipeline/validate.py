@@ -166,6 +166,53 @@ def _check_date_gaps(df: pd.DataFrame, label: str, date_col: str = "date") -> No
         ok(label, f"all {len(missing)} date gap(s) accounted for in known_gaps.json")
 
 
+# Generation-mix and frequency sanity. Both bounds mirror the parsers'
+# _reconcile_daily() (Scrapings/parse_psp_*.py: SHARE_TOL_PP, FVI_MAX), which fix
+# these source-side errors at parse time, so a FAIL here means a new source quirk
+# the parser didn't catch or a row written around the parser.
+SHARE_TOL_PP = 1.0   # printed share vs. share recomputed from the gen table
+FVI_MAX      = 5.0   # FVI is a small index; every real day 2018-2026 is < 0.43
+FVI_WARN     = 1.0   # above this is possible but unusual -- worth eyeballing
+
+
+def _check_gen_share_and_fvi(df: pd.DataFrame, label: str) -> None:
+    """share_res_pct / share_nonfossil_pct must agree with the gen_* columns, and
+    freq_fvi must be a plausible index value (49.215 on 2021-03-02 was a Hz value
+    printed in the FVI cell). Rows broadcast to hourly/15-min grain are reported
+    by date."""
+    gen = ["gen_res_mu", "gen_total_mu", "gen_hydro_mu", "gen_nuclear_mu"]
+    if all(c in df.columns for c in gen):
+        total = df["gen_total_mu"].where(df["gen_total_mu"] > 0)
+        targets = {
+            "share_res_pct": df["gen_res_mu"] / total * 100,
+            "share_nonfossil_pct": (df["gen_hydro_mu"] + df["gen_nuclear_mu"]
+                                    + df["gen_res_mu"]) / total * 100,
+        }
+        for col, calc in targets.items():
+            if col not in df.columns:
+                continue
+            bad = (df[col] - calc).abs() > SHARE_TOL_PP
+            if bad.any():
+                dates = sorted(df.loc[bad, "date"].astype(str).str[:10].unique())
+                fail(label, f"{col}: {len(dates)} date(s) differ from gen columns by "
+                            f">{SHARE_TOL_PP} pt: {dates}")
+            else:
+                ok(label, f"{col} agrees with gen columns (within {SHARE_TOL_PP} pt)")
+
+    if "freq_fvi" in df.columns:
+        fvi = df["freq_fvi"]
+        out = fvi.notna() & ~fvi.between(0, FVI_MAX)
+        high = fvi.between(FVI_WARN, FVI_MAX, inclusive="neither")
+        if out.any():
+            dates = sorted(df.loc[out, "date"].astype(str).str[:10].unique())
+            fail(label, f"freq_fvi: {len(dates)} date(s) outside [0, {FVI_MAX}]: {dates}")
+        elif high.any():
+            dates = sorted(df.loc[high, "date"].astype(str).str[:10].unique())
+            warn(label, f"freq_fvi: {len(dates)} date(s) above {FVI_WARN} (unusual): {dates}")
+        else:
+            ok(label, f"freq_fvi within [0, {FVI_WARN}]")
+
+
 # ── study1_daily checks ───────────────────────────────────────────────────────
 
 def check_study1_daily() -> None:
@@ -190,6 +237,7 @@ def check_study1_daily() -> None:
         ok(label, f"row count = {n_rows:,}")
 
     _check_null_drift(df, label)
+    _check_gen_share_and_fvi(df, label)
 
     # Duplicate dates
     dupes = df["date"].duplicated().sum() if "date" in df.columns else 0
@@ -278,6 +326,7 @@ def check_study2_scada() -> None:
         ok(label, f"row count = {n_rows:,}")
 
     _check_null_drift(df, label)
+    _check_gen_share_and_fvi(df, label)
 
     # Duplicate (date, hhmm) pairs
     if "date" in df.columns and "hhmm" in df.columns:
@@ -377,6 +426,7 @@ def check_study1_hourly() -> None:
         ok(label, f"row count = {n_rows:,}")
 
     _check_null_drift(df, label)
+    _check_gen_share_and_fvi(df, label)
 
     # Datetime column
     # NOTE: previously parsed with format="mixed", dayfirst=True, which is wrong for this

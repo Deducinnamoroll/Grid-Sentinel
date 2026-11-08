@@ -39,6 +39,8 @@ Exit code 0 means no FAILs. Exit code 1 means at least one check failed.
 
 ## Checks run per dataset
 
+`study1_daily`, `study2_scada` and `study1_hourly` also get the generation-share and FVI checks (added 2026-11-08, see the dated section further down); they are listed in each table.
+
 All four datasets also get two checks not repeated in each table below (added 2026-07-11, see the dated section further down): a **date-gap check** against `Pipeline/known_gaps.json` (FAIL if a missing date isn't in that file) and a **null-drift check** against `Pipeline/null_baselines.json` (WARN if a column's null% rises more than 5 percentage points above its stored baseline).
 
 ### study1_daily
@@ -52,6 +54,9 @@ All four datasets also get two checks not repeated in each table below (added 20
 | `xb_export_*` non-negative | WARN | All four country export columns must be >= 0 |
 | `xb_net = import - export` | WARN | Absolute difference <= 0.01 MU for all rows |
 | `ir_*_net = import - export` | WARN | Absolute difference <= 0.01 MU for all rows, all 7 corridors |
+| `share_res_pct` vs gen columns | FAIL | Within 1.0 point of `gen_res_mu / gen_total_mu * 100` |
+| `share_nonfossil_pct` vs gen columns | FAIL | Within 1.0 point of `(gen_hydro_mu + gen_nuclear_mu + gen_res_mu) / gen_total_mu * 100` |
+| `freq_fvi` range | FAIL outside [0, 5], WARN above 1 | Real days 2018-2026 are 0.01 to 0.43 |
 
 The 7 IR corridors checked are: ER-NR, ER-WR, ER-SR, ER-NER, NER-NR, WR-NR, WR-SR.
 
@@ -67,6 +72,9 @@ The 7 IR corridors checked are: ER-NR, ER-WR, ER-SR, ER-NER, NER-NR, WR-NR, WR-S
 | Days outside 95-98 slots | FAIL if > 10 days, WARN if <= 10 | Each day should have 96 fifteen-minute slots |
 | Days not exactly 96 slots | WARN | Informational count only |
 | `freq_hz` range | WARN | Values must be within [47, 52] Hz |
+| `share_res_pct` vs gen columns | FAIL | Within 1.0 point of `gen_res_mu / gen_total_mu * 100` |
+| `share_nonfossil_pct` vs gen columns | FAIL | Within 1.0 point of `(gen_hydro_mu + gen_nuclear_mu + gen_res_mu) / gen_total_mu * 100` |
+| `freq_fvi` range | FAIL outside [0, 5], WARN above 1 | Real days 2018-2026 are 0.01 to 0.43 |
 
 ### study3_states
 
@@ -86,6 +94,9 @@ The 7 IR corridors checked are: ER-NR, ER-WR, ER-SR, ER-NER, NER-NR, WR-NR, WR-S
 | Column count | FAIL | Must equal 151 |
 | Row count | FAIL | Must be >= 46,728 |
 | Latest datetime | Informational | Printed but not a FAIL condition |
+| `share_res_pct` vs gen columns | FAIL | Within 1.0 point of `gen_res_mu / gen_total_mu * 100` |
+| `share_nonfossil_pct` vs gen columns | FAIL | Within 1.0 point of `(gen_hydro_mu + gen_nuclear_mu + gen_res_mu) / gen_total_mu * 100` |
+| `freq_fvi` range | FAIL outside [0, 5], WARN above 1 | Real days 2018-2026 are 0.01 to 0.43 |
 
 ---
 
@@ -121,6 +132,17 @@ Also found while re-deriving this list: the `study3_states`-only Hindi-PDF gap w
 **Null-drift check** (`_check_null_drift`): compares each column's current null% against a stored baseline in `Pipeline/null_baselines.json`, WARNing if it rises more than 5 percentage points. Deliberately relative to a per-column baseline rather than an absolute rule — most columns are legitimately high-null by design (`ir_*`/`xb_*` only populated from 2023+, `wind_gen_er_mu`/`wind_gen_ner_mu` near 100% since ER/NER have no wind generation), so "any nulls = warning" would be constant noise.
 
 Both checks were sanity-tested against a fabricated regression (a synthetic missing date not in the known-gaps file; a column forced to 50% null) before being trusted — both fired correctly, confirming the checks aren't vacuously passing.
+
+---
+
+## Generation-share and FVI checks, added 2026-11-08
+
+`_check_gen_share_and_fvi()` runs on every dataset that carries the daily generation columns (`study1_daily`, `study2_scada`, `study1_hourly`; the latter two repeat the daily values on every slot, so failures are reported by date).
+
+- **Shares vs gen columns (FAIL):** `share_res_pct` and `share_nonfossil_pct` must be within 1.0 point of the value recomputed from `gen_*_mu`. Before the fix this caught 8 RES days (2024-03-12 read 96.8%) and 12 non-fossil days.
+- **FVI range (FAIL / WARN):** `freq_fvi` outside [0, 5] fails (2021-03-02 read 49.215); above 1 warns, since that is possible but far above anything seen so far.
+
+Both bounds are the same constants the parsers use in `_reconcile_daily()` (`SHARE_TOL_PP`, `FVI_MAX`), so a FAIL means a new kind of source error the parser didn't catch, or a row written without going through the parser. Tested against the pre-fix `study1_daily.csv` from git: all three checks fired on exactly the expected dates. See `parse_psp_pdf_xls_notes.md` for the per-day evidence.
 
 ---
 

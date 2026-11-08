@@ -61,7 +61,7 @@ Every file has an `asOf` date. Before 2026-11-08 the script wrote one `dashboard
 
 **Monthly series are per-day averages, not sums.** The current month is always partial; a monthly sum would show a fake dip at the end of every chart. Averages compare fairly.
 
-**Corridor sign convention.** `ir_<a>_<b>_net_mu` is import minus export from region A's side, so a negative value means power flowed from A to B. This was checked against the parser (`_xls_parse_ir_line` reads the IR-Line sheet's import/export columns for the named pair) and against the physics: WR to SR, ER to SR and ER to NR show up as large daily exports from the first region, as expected. The dashboard flips the sign so "A to B" is positive. The `Dataset/data_dictionary.xlsx` note for these columns says "positive = net import by the destination region", which reads as the opposite; see Known issues.
+**Corridor sign convention.** `ir_<a>_<b>_net_mu` is import minus export from region A's side, so a negative value means power flowed from A to B. This was checked against the parser (`_xls_parse_ir_line` reads the IR-Line sheet's import/export columns for the named pair) and against the physics: WR to SR, ER to SR and ER to NR show up as large daily exports from the first region, as expected. The dashboard flips the sign so "A to B" is positive. `Dataset/data_dictionary.xlsx` describes the columns the same way (fixed 2026-11-08; it used to say "positive = net import by the destination region").
 
 **Cross-border sign.** `xb_net_<country>_mu` is import minus export from India's side: positive means India imported.
 
@@ -77,21 +77,15 @@ Every file has an `asOf` date. Before 2026-11-08 the script wrote one `dashboard
 
 ---
 
-## Display-only guards on the source data
+## Source-data fixes (formerly display-only guards)
 
-`_load_daily()` blanks two kinds of values it can prove are wrong, for the dashboard only. The CSVs are not changed. The build prints the affected dates every run.
+Until 2026-11-08 `_load_daily()` blanked two kinds of bad values for the dashboard only: `share_res_pct` where it disagreed with `gen_res_mu / gen_total_mu * 100` by more than 1 point (8 days, e.g. 2024-03-12 read 96.8%), and `freq_fvi` above 5 (2021-03-02 read 49.215). Both turned out to be errors in NLDC's own reports, not parser slips. They are now fixed in the parsers (`_reconcile_daily()` in `Scrapings/parse_psp_*.py`) and in the published CSVs, and `Pipeline/validate.py` fails if either comes back, so the guards were removed. See `Pipeline/docs/parse_psp_pdf_xls_notes.md` for the per-day evidence.
 
-| Column | Rule | Days caught (2026-11-08) |
-|--------|------|--------------------------|
-| `share_res_pct` | Blank when it differs from `gen_res_mu / gen_total_mu * 100` by more than 1 percentage point | 8: 2022-06-20, 2022-06-28, 2022-08-18, 2022-11-08, 2023-03-30, 2023-09-03, 2024-03-12 (reads 96.8%), 2024-12-18 |
-| `freq_fvi` | Blank when above 5 (every other day is below 0.43) | 1: 2021-03-02 (reads 49.215, which looks like a frequency in Hz) |
-
-The Era 1 and Era 2 tables reproduce notebook numbers and still read the CSV directly, without these guards, so they keep matching the notebooks.
+The Era 1 table and the RES-share findings in `models.json` read the corrected CSV, so their `share_res_pct` means move slightly for months that held a corrected day (June, August and November 2022 in Era 1; the ramp-reversal within-month correlations change in the fourth decimal). They may no longer match the notebooks' saved outputs to the last digit until the notebooks are re-run.
 
 ---
 
 ## Known issues
 
-- The two guards above hide parse errors that should be fixed at the source (the parsers or the published CSVs), then the guards can go.
-- The data dictionary's description of the `ir_*_net_mu` sign looks inverted relative to the data (see "Corridor sign convention").
-- `Pipeline/validate.py` does not yet check `share_res_pct` against the generation columns or range-check `freq_fvi`; either check would have caught these.
+None open.
+

@@ -52,14 +52,19 @@ XB_COUNTRIES = {
     "myanmar":    "Myanmar",
 }
 
+# (first-named region, second region). NLDC's IR-Line sheet groups lines under
+# "Import/Export of <A> (With <B>)" and reports import, export and net from A's
+# side ("Import=(+ve) /Export =(-ve) for NET"), so a negative net means A sent
+# energy to B. Verified 2026-11-08 against 13.03.24's IR-Line sheet and the data
+# (ir_er_nr_net_mu is negative on 97% of days: ER exports to NR).
 IR_CORRIDORS = {
-    "ir_er_nr":  "ER to NR",
-    "ir_er_wr":  "ER to WR",
-    "ir_er_sr":  "ER to SR",
-    "ir_er_ner": "ER to NER",
-    "ir_ner_nr": "NER to NR",
-    "ir_wr_nr":  "WR to NR",
-    "ir_wr_sr":  "WR to SR",
+    "ir_er_nr":  ("ER", "NR"),
+    "ir_er_wr":  ("ER", "WR"),
+    "ir_er_sr":  ("ER", "SR"),
+    "ir_er_ner": ("ER", "NER"),
+    "ir_ner_nr": ("NER", "NR"),
+    "ir_wr_nr":  ("WR", "NR"),
+    "ir_wr_sr":  ("WR", "SR"),
 }
 
 # ── Schema start dates ────────────────────────────────────────────────────────
@@ -143,9 +148,11 @@ for r, rname in REGIONS.items():
          f"Time at which maximum demand was met in {rname} (study2_scada only).")
 
 # Frequency statistics
-_add("freq_fvi",           "%",    SEC_B, DATE_FULL,
-     "Frequency Violation Index: percentage of the day that system frequency was "
-     "outside the NLDC grid code band (49.7 to 50.2 Hz).")
+_add("freq_fvi",           "index", SEC_B, DATE_FULL,
+     "Frequency Variation Index as printed by NLDC: a small dimensionless index of "
+     "how far frequency strayed from 50 Hz over the day (0 = held at 50 Hz). Not a "
+     "percentage; real days 2018-2026 range 0.01 to 0.43. Values outside [0, 5] are "
+     "source typos and are nulled by the parser (2021-03-02 printed 49.215, a Hz value).")
 _add("freq_pct_below_497", "%",    SEC_B, DATE_FULL,
      "Percentage of the day with frequency below 49.7 Hz.")
 _add("freq_pct_497_498",   "%",    SEC_B, DATE_FULL,
@@ -177,9 +184,14 @@ _add("gen_total_mu",   "MU", SEC_B, DATE_FULL, "Total national generation.")
 
 # Share indicators
 _add("share_res_pct",       "%", SEC_B, DATE_FULL,
-     "Renewable energy share as a percentage of total generation.")
+     "Renewable energy share as a percentage of total generation "
+     "(gen_res_mu / gen_total_mu * 100). Taken from the report's share row, but "
+     "recomputed from the gen columns when the printed value is off by more than "
+     "1 point (stale share rows in some NLDC files, e.g. 2024-03-12 printed 96.8%).")
 _add("share_nonfossil_pct", "%", SEC_B, DATE_FULL,
-     "Non-fossil fuel share (nuclear + hydro + RES) as a percentage of total generation.")
+     "Non-fossil fuel share (nuclear + hydro + RES) as a percentage of total generation "
+     "((gen_hydro_mu + gen_nuclear_mu + gen_res_mu) / gen_total_mu * 100). Recomputed "
+     "from the gen columns when the printed value is off by more than 1 point.")
 
 # Outages by sector and region
 for r, rname in REGIONS.items():
@@ -221,14 +233,16 @@ _add("diversity_state",    "ratio", SEC_B, DATE_FULL,
      "computed at the state level.")
 
 # IR-Line corridor flows
-for prefix, desc in IR_CORRIDORS.items():
+for prefix, (a, b) in IR_CORRIDORS.items():
     _add(f"{prefix}_import_mu", "MU", SEC_IR, DATE_IR_XB,
-         f"Energy imported through the {desc} inter-regional corridor.")
+         f"Energy {a} imported from {b} over the {a}-{b} inter-regional lines "
+         f"(sum of all {a}-{b} lines, as seen from {a}'s side).")
     _add(f"{prefix}_export_mu", "MU", SEC_IR, DATE_IR_XB,
-         f"Energy exported through the {desc} inter-regional corridor.")
+         f"Energy {a} exported to {b} over the {a}-{b} inter-regional lines "
+         f"(sum of all {a}-{b} lines, as seen from {a}'s side).")
     _add(f"{prefix}_net_mu",    "MU", SEC_IR, DATE_IR_XB,
-         f"Net flow through the {desc} corridor (import minus export). "
-         f"Positive = net import by the destination region.")
+         f"Net {a}-{b} exchange from {a}'s side: import minus export. "
+         f"Positive = {a} is a net importer from {b}; negative = net flow {a} to {b}.")
 
 # Solar / nonsolar peak-hour statistics
 _add("solar_hr_peak_mw",      "MW", SEC_A, DATE_SOLAR_HR,
