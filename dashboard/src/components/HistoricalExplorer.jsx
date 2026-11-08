@@ -12,10 +12,10 @@ const TABS = [
   { id: 'era2', label: 'Era 2: Corridor-stress correlation (2023–Oct 2024)' },
 ]
 
-function OverviewTab({ dailySlim }) {
-  if (!dailySlim.length) return <Empty>No data.</Empty>
-  const demandData = dailySlim.map((r) => ({ date: fmtDateShort(r.date), Demand: r.max_demand_met_total_mw }))
-  const resData = dailySlim.map((r) => ({ date: fmtDateShort(r.date), 'RES share': r.share_res_pct }))
+function FullHistory({ history }) {
+  if (!history.length) return <Empty>No data.</Empty>
+  const demandData = history.map((r) => ({ date: fmtDateShort(r.date), Demand: r.demand }))
+  const resData = history.map((r) => ({ date: fmtDateShort(r.date), 'RES share': r.res }))
 
   return (
     <div className="space-y-4">
@@ -68,7 +68,7 @@ function OverviewTab({ dailySlim }) {
               <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
               <XAxis dataKey="date" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} interval={Math.floor(resData.length / 8)} />
               <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={(v) => v + '%'} width={40} />
-              <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(1) + '%'} />} />
+              <Tooltip content={<ChartTooltip formatter={(v) => (v === null ? 'N/A' : v.toFixed(1) + '%')} />} />
               <Area type="monotone" dataKey="RES share" stroke="#fbbf24" strokeWidth={1.5} fill="url(#resHistGrad)" dot={false} isAnimationActive={false} />
               <Brush
                 dataKey="date"
@@ -165,7 +165,7 @@ function Era2Tab({ era2CorridorCorr }) {
   )
 }
 
-export default function HistoricalExplorer({ dailySlim, era1Monthly, era2CorridorCorr }) {
+export default function HistoricalExplorer({ history, era1Monthly, era2CorridorCorr }) {
   const [tab, setTab] = useState('overview')
 
   return (
@@ -186,7 +186,7 @@ export default function HistoricalExplorer({ dailySlim, era1Monthly, era2Corrido
         ))}
       </div>
 
-      {tab === 'overview' && <OverviewTab dailySlim={dailySlim} />}
+      {tab === 'overview' && <FullHistory history={history} />}
       {tab === 'era1' && <Era1Tab era1Monthly={era1Monthly} />}
       {tab === 'era2' && <Era2Tab era2CorridorCorr={era2CorridorCorr} />}
     </SectionCard>
