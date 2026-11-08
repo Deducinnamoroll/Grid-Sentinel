@@ -57,7 +57,13 @@ Runs as a step in `.github/workflows/daily_scrape.yml`, after the daily scrape (
 ## Usage
 
 ```
-python ML/Study1/predict.py
+python ML/Study1/predict.py                      # forecast for tomorrow (daily CI)
+python ML/Study1/predict.py --date 2026-10-05    # as if run on 2026-10-05 (forecasts 10-06)
+python ML/Study1/predict.py --from 2026-09-30    # every day from there to the latest whose forecast is missing (--to caps it)
 ```
+
+### Backfilling (added 2026-11-08)
+
+Same reason as Study 2: days CI missed during the 2026-09-30 to 2026-11-05 outage have no forecast row. For each requested day the frame is cut at that day before features and training, so the forecast sees only data through that day. Actual and residual are filled in straight away because the target day is already in the data. Safe to repeat: a day whose forecast row exists is skipped. 35 days takes about 20 seconds.
 
 Depends on `pandas`, `numpy`, `lightgbm` (added to CI's pip install list alongside the existing scraping dependencies).

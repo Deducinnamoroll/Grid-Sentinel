@@ -61,7 +61,13 @@ Runs as a step in `.github/workflows/daily_scrape.yml`, after Study 1's forecast
 ## Usage
 
 ```
-python ML/Study2/predict.py
+python ML/Study2/predict.py                      # latest complete day (daily CI)
+python ML/Study2/predict.py --date 2026-10-05    # one specific past day
+python ML/Study2/predict.py --from 2026-09-30    # every day from there to the latest that is missing from the log (--to caps it)
 ```
+
+### Backfilling (added 2026-11-08)
+
+The daily run only ever predicts the latest day, so any day CI missed (the 2026-09-30 to 2026-11-05 outage) is simply absent from the log and from the dashboard's "Day" dropdown. `--from/--to/--date` fill those in. A backfilled day must be what the live run would have output that day, so it is not allowed to see the future: the scada table is cut at the target day (the last training day's trailing lead labels stay unresolved, as they are live) and Study 1's residual signal is masked from the target day onward (the residual at date d needs day d+1's actual demand). Verified by re-deriving 2026-09-29, which CI logged live: max absolute difference 0.000000 on all 96 slots for both models. Study 1's residual signal and the full feature table are built once per run and reused, so each extra day costs only a few seconds (3 days took 23 seconds total locally, including the one-off setup).
 
 Depends on `pandas`, `numpy`, `lightgbm` (already in CI's pip install list, added when Study 1's `predict.py` was wired in).

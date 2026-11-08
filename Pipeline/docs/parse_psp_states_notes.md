@@ -59,6 +59,8 @@ Depends on `pdfplumber` (PDF era), `pandas` + `xlrd` (XLS era). No dependency on
 
 ---
 
+**New entities do happen, and an unmapped one stalls the pipeline.** On 2026-09-30 NLDC began publishing `Bulk Consumer_WR/SR/ER/NER ISTS` rows (previously only the NR one). Unmapped, they have a null region, which fails the incremental validation and blocks the whole day's commit. Added to `STATE_TO_REGION` on 2026-11-08 (the suffix names the region). When a new name shows up, CI now turns the run red with a message pointing here; add the name to the map and re-run, and the 90-day scan fills the days that were skipped. See `update_live_notes.md` for the full incident.
+
 ## Output schema
 
 `date, region, state, max_demand_met_mw, shortage_max_demand_mw, energy_met_mu, drawal_schedule_mu, od_ud_mu, max_od_mw, energy_shortage_mu` — 10 columns, long format. Chosen over wide (one row per date, ~40 states × 7 metrics ≈ 280 columns) because long format matches how a per-entity time series is actually queried or joined.

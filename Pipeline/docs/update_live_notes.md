@@ -24,7 +24,7 @@ This is the script that keeps the dataset alive. Every day, without anyone touch
 | Mode | Trigger | Behavior |
 |------|---------|----------|
 | Download mode (default) | `workflow_dispatch` or scheduled cron | Downloads today's (or yesterday's, or a `--date`-specified) file from NLDC, parses it, appends one day's rows to all three CSVs that have per-file appends |
-| Scan mode (`--scan`) | Triggered on `push` to `Dataset/Raw/File2_Raw` or `File3_Raw` (i.e. someone manually added raw files) | Parses every raw file in `File3_Raw` dated within the last 10 days that isn't already reflected in the CSVs — catches up after a manual backfill or a missed day |
+| Scan mode (`--scan`) | Triggered on `push` to `Dataset/Raw/File2_Raw` or `File3_Raw` (i.e. someone manually added raw files) | Parses every raw file in `File3_Raw` dated within the last `--lookback` days (default 90) whose date is not already in all three CSVs. Files already reflected are skipped without being parsed, so the long window is cheap. This is what makes an outage self-healing: once the cause is fixed, the next scan fills every missing day |
 
 ### Download fallback chain (`download_today()`)
 
@@ -51,6 +51,26 @@ Uses the same static `STATE_TO_REGION` map and `STATE_NAME_ALIASES` as the full-
 
 `validate()` runs lightweight sanity checks (duplicate dates/keys, null-rate jump for study1) on whichever datasets actually changed. This is a fast subset of `Pipeline/validate.py`'s checks, run inline so a bad append fails the CI job immediately (exit code 2) rather than silently corrupting the committed CSV.
 
+### Exit codes, and what CI does with them
+
+| Code | Meaning | CI behaviour |
+|------|---------|--------------|
+| 0 | Ran fine (possibly nothing new) | Normal |
+| 1 | File not published yet | Not an error, retry later |
+| 2 | Validation failed, nothing committed | The run turns red (last workflow step) |
+
+An uncaught exception also exits 1, so the workflow additionally greps the log for a `Traceback` and fails the run on one.
+
+### Incident that shaped this (2026-09-30 to 2026-11-08)
+
+On 2026-09-30 NLDC began publishing `Bulk Consumer_WR/SR/ER/NER ISTS` rows in section C (before that only the NR one existed). They were not in `STATE_TO_REGION`, so validation failed with exit 2 every day. The workflow then treated exit 2 like exit 1 ("not published yet"), so every run stayed green, no data was committed for five weeks, and the live dashboard fell behind. A second fault hid the damage: the scan only looked back 10 days, so after the mapping was fixed only the last 10 days were recovered and about 29 days in October stayed missing. Three changes came out of it:
+
+1. The workflow captures the exit code and turns the run red on exit 2 or a crash.
+2. A freshness step fails the run when the latest `study1_daily.csv` date is more than 5 days old (same threshold as `Pipeline/validate.py`'s `MAX_LAG_DAYS`).
+3. The scan window is 90 days with cheap skipping of already-parsed dates, so any outage repairs itself.
+
+Remaining limit: nothing runs if no push or manual dispatch happens at all. The workflow has no cron trigger; days arrive when the raw files are pushed.
+
 ---
 
 ## Verification (2026-07-10)
@@ -64,7 +84,8 @@ All three append functions independently tested by removing a known date from a 
 ```
 python Scrapings/update_live.py                        # download today/yesterday, append
 python Scrapings/update_live.py --date 2026-06-24       # backfill a specific date
-python Scrapings/update_live.py --scan                  # catch up on manually-added raw files
+python Scrapings/update_live.py --scan                  # catch up on unparsed raw files (last 90 days)
+python Scrapings/update_live.py --scan --lookback 200   # reach further back after a very long outage
 ```
 
 Depends on `download_psp_new.py` (same folder) for the CDN fetch logic, and imports `parse_file`/`build_timeseries_long`/`parse_file` from the three per-dataset parsers at call time (not at module load) to avoid unnecessary import cost when only one dataset needs updating.

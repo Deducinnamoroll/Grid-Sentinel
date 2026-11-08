@@ -15,6 +15,14 @@ on:
         description: 'Parse all unparsed files already in File3_Raw (yes/no).'
         required: false
         default: 'no'
+      lookback_days:
+        description: 'With scan: days of raw files to consider (blank = 90). Days already in the CSVs are skipped.'
+        required: false
+        default: ''
+      backfill_from:
+        description: 'Backfill missing Study 1/2 predictions from this date (YYYY-MM-DD). Blank = latest day only.'
+        required: false
+        default: ''
 
 permissions:
   contents: write   # needed to commit updated CSVs back to repo
@@ -44,25 +52,37 @@ jobs:
                       numpy scikit-learn lightgbm
 
       # ── 4. Run scraper ─────────────────────────────────────────────────────
+      # The script's exit code is captured instead of letting the step fail, because
+      # the three outcomes mean different things:
+      #   0 = ok (maybe nothing new)   1 = file not published yet (retry later, fine)
+      #   2 = validation FAILED, no data committed -- must turn the run red.
+      # Before this, exit 2 was treated like exit 1, so a bad day (new state names,
+      # 2026-09-30) silently stalled the pipeline for five weeks behind green runs.
       - name: Run daily update
         id: scrape
+        env:
+          INPUT_DATE: ${{ github.event.inputs.date }}
+          INPUT_SCAN: ${{ github.event.inputs.scan }}
+          INPUT_LOOKBACK: ${{ github.event.inputs.lookback_days }}
         run: |
-          if [ "${{ github.event.inputs.scan }}" = "yes" ] || [ "${{ github.event_name }}" = "push" ]; then
-            python Scrapings/update_live.py --scan
-          elif [ -n "${{ github.event.inputs.date }}" ]; then
-            python Scrapings/update_live.py --date "${{ github.event.inputs.date }}"
+          set +e
+          run() { python Scrapings/update_live.py "$@" 2>&1 | tee scrape.log; return "${PIPESTATUS[0]}"; }
+          if [ "$INPUT_SCAN" = "yes" ] || [ "${{ github.event_name }}" = "push" ]; then
+            run --scan --lookback "${INPUT_LOOKBACK:-90}"; code=$?
+          elif [ -n "$INPUT_DATE" ]; then
+            run --date "$INPUT_DATE"; code=$?
           else
-            python Scrapings/update_live.py
+            run; code=$?
           fi
-        # Exit 1 = not published yet (not a failure, just retry later)
-        continue-on-error: true
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
 
       - name: Check scrape outcome
         id: outcome
         run: |
-          if [ "${{ steps.scrape.outcome }}" = "failure" ]; then
+          if [ "${{ steps.scrape.outputs.exit_code }}" != "0" ]; then
             echo "changed=false" >> $GITHUB_OUTPUT
-            echo "Scrape exited with error — file not available yet or parse failed."
+            echo "Scrape exited with code ${{ steps.scrape.outputs.exit_code }} -- file not available yet, or it failed (the last step reports failures)."
           else
             # Check if CSVs or raw folders changed
             git diff --quiet Dataset/study1_daily.csv Dataset/study2_scada.csv Dataset/study3_states.csv \
@@ -78,7 +98,9 @@ jobs:
       # is committed in the same commit as the day's data update below.
       - name: Run Study 1 forecast
         if: steps.outcome.outputs.changed == 'true'
-        run: python ML/Study1/predict.py
+        env:
+          BACKFILL_FROM: ${{ github.event.inputs.backfill_from }}
+        run: python ML/Study1/predict.py ${BACKFILL_FROM:+--from "$BACKFILL_FROM"}
         # A forecasting failure should never block the day's actual data from being
         # committed -- data freshness matters more than the forecast. If this fails,
         # the log simply doesn't get a new row today; it catches up next successful run.
@@ -91,7 +113,9 @@ jobs:
       # not a single point estimate -- see ML/Study2/predict.py's docstring.
       - name: Run Study 2 risk timeline
         if: steps.outcome.outputs.changed == 'true'
-        run: python ML/Study2/predict.py
+        env:
+          BACKFILL_FROM: ${{ github.event.inputs.backfill_from }}
+        run: python ML/Study2/predict.py ${BACKFILL_FROM:+--from "$BACKFILL_FROM"}
         # Same reasoning as Study 1: a model failure must never block the day's
         # actual data from committing.
         continue-on-error: true
@@ -171,4 +195,32 @@ jobs:
             echo "✅ CSVs updated and pushed to GitHub + Kaggle."
           else
             echo "ℹ️  No new data available yet — will retry at next scheduled run."
+          fi
+
+      # ── 9. Alarms ──────────────────────────────────────────────────────────
+      # Both make the run red, which is what triggers GitHub's failed-workflow email
+      # (Settings > Notifications > Actions). They run last and always, so a failure
+      # here never stops the data commit or the Kaggle/Vercel steps above.
+      - name: Fail the run on a validation error or crash
+        if: always()
+        run: |
+          code="${{ steps.scrape.outputs.exit_code }}"
+          if [ "$code" = "2" ]; then
+            echo "::error title=Data validation failed::update_live.py failed validation (exit 2) and NO data was committed. Look for VALIDATION ERROR in the 'Run daily update' log. Common cause: a new or renamed state in NLDC's section C (add it to STATE_TO_REGION in Scrapings/parse_psp_states.py)."
+            exit 1
+          fi
+          if [ -f scrape.log ] && grep -q "^Traceback" scrape.log; then
+            echo "::error title=Scraper crashed::update_live.py raised an exception (exit $code). See the 'Run daily update' log."
+            exit 1
+          fi
+
+      - name: Fail the run if the data is stale
+        if: always()
+        run: |
+          latest=$(tail -n +2 Dataset/study1_daily.csv | cut -d, -f1 | sort | tail -1)
+          lag=$(( ( $(date -u +%s) - $(date -u -d "$latest" +%s) ) / 86400 ))
+          echo "Latest study1_daily date: $latest ($lag day(s) old)"
+          if [ "$lag" -gt 5 ]; then
+            echo "::error title=Data is stale::Latest data is $latest ($lag days old; threshold 5, same as Pipeline/validate.py MAX_LAG_DAYS)."
+            exit 1
           fi

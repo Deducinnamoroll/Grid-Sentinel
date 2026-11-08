@@ -23,9 +23,18 @@ already exists in the log, it's left alone rather than duplicated or
 overwritten (matches update_live.py's idempotency convention).
 
 Usage:
-    python ML/Study1/predict.py
+    python ML/Study1/predict.py                      # forecast for tomorrow (daily CI)
+    python ML/Study1/predict.py --date 2026-10-05    # as if run on 2026-10-05 (forecasts 10-06)
+    python ML/Study1/predict.py --from 2026-09-30    # every day from there to the latest
+                                                     # whose forecast is missing from the log
+                                                     # (--to caps the range)
+
+A backfilled forecast only sees data through its --date day (the frame is cut
+there before features and training), so it is what the live run would have output
+that day, not a forecast informed by days that had not happened yet.
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -108,7 +117,35 @@ def train_and_predict(df: pd.DataFrame):
     return forecast, today, tomorrow
 
 
+def _select_made_dates(args, df: pd.DataFrame, log: pd.DataFrame) -> list:
+    """Days the forecast is 'made on'. Default: the latest day in the data (forecasts
+    tomorrow). --date: that one day. --from/--to: every data day in the range whose
+    forecast (made_date + 1) is not in the log yet."""
+    days = df["date"]
+    latest = days.iloc[-1]
+    if args.date:
+        day = pd.Timestamp(args.date)
+        if day not in set(days):
+            print(f"ERROR: {day.date()} is not a day in study1_daily.csv.")
+            sys.exit(1)
+        return [day]
+    if args.from_date:
+        start = pd.Timestamp(args.from_date)
+        end = pd.Timestamp(args.to_date) if args.to_date else latest
+        logged_targets = set(log["target_date"]) if not log.empty else set()
+        return [d for d in days
+                if start <= d <= end and d + pd.Timedelta(days=1) not in logged_targets]
+    return [latest]
+
+
 def main():
+    parser = argparse.ArgumentParser(description=__doc__.split("Usage:")[0].strip())
+    parser.add_argument("--date", help="Forecast as if run on this day (YYYY-MM-DD) instead of the latest.")
+    parser.add_argument("--from", dest="from_date",
+                        help="Backfill every day from here (YYYY-MM-DD) whose forecast is missing from the log.")
+    parser.add_argument("--to", dest="to_date", help="With --from: last day to backfill (default: latest).")
+    args = parser.parse_args()
+
     if not STUDY1_CSV.exists():
         print(f"ERROR: {STUDY1_CSV} not found. Run the daily scrape / build_all.py first.")
         sys.exit(1)
@@ -116,26 +153,32 @@ def main():
     df = pd.read_csv(STUDY1_CSV, parse_dates=["date"])
     df = df.sort_values("date").reset_index(drop=True)
 
-    forecast, today, tomorrow = train_and_predict(df)
-    print(f"Prediction made on data through {today.date()}")
-    print(f"Forecast for {tomorrow.date()}: {forecast:,.1f} MW")
-
     log = _load_log()
+    made_dates = _select_made_dates(args, df, log)
+    if not made_dates:
+        print("Nothing to forecast: every requested day is already in the log.")
+
     log = _backfill_actuals(log, df)
+    for made_date in made_dates:
+        forecast, today, tomorrow = train_and_predict(df[df["date"] <= made_date].reset_index(drop=True))
+        print(f"Prediction made on data through {today.date()}")
+        print(f"Forecast for {tomorrow.date()}: {forecast:,.1f} MW")
 
-    already_predicted = (log["target_date"] == tomorrow).any() if not log.empty else False
-    if already_predicted:
-        print(f"Forecast for {tomorrow.date()} already exists in the log -- not duplicating.")
-    else:
-        new_row = pd.DataFrame([{
-            "prediction_made_date": today,
-            "target_date": tomorrow,
-            "predicted_mw": forecast,
-            "actual_mw": np.nan,
-            "residual_mw": np.nan,
-        }])
-        log = pd.concat([log, new_row], ignore_index=True)
+        already_predicted = (log["target_date"] == tomorrow).any() if not log.empty else False
+        if already_predicted:
+            print(f"Forecast for {tomorrow.date()} already exists in the log -- not duplicating.")
+        else:
+            new_row = pd.DataFrame([{
+                "prediction_made_date": today,
+                "target_date": tomorrow,
+                "predicted_mw": forecast,
+                "actual_mw": np.nan,
+                "residual_mw": np.nan,
+            }])
+            log = pd.concat([log, new_row], ignore_index=True)
 
+    # A backfilled forecast's target day is usually already in the data, so fill its actual now.
+    log = _backfill_actuals(log, df)
     log = log.sort_values("target_date").reset_index(drop=True)
     FORECAST_LOG.parent.mkdir(parents=True, exist_ok=True)
     log.to_csv(FORECAST_LOG, index=False)

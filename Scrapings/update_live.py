@@ -289,21 +289,40 @@ def _parse_file_date(path: Path) -> date | None:
         return None
 
 
-def scan_and_parse(lookback_days: int = 10) -> tuple[bool, bool, bool]:
+DEFAULT_LOOKBACK_DAYS = 90
+
+
+def _dates_in_all_csvs() -> set[str]:
+    """ISO dates already present in study1_daily, study2_scada AND study3_states."""
+    present = []
+    for path in (STUDY1_CSV, STUDY2_CSV, STUDY3_CSV):
+        present.append(set(pd.read_csv(path, usecols=["date"])["date"].astype(str)))
+    return set.intersection(*present)
+
+
+def scan_and_parse(lookback_days: int = DEFAULT_LOOKBACK_DAYS) -> tuple[bool, bool, bool]:
     """
-    Parse recent raw files in FILE3_RAW not yet reflected in the CSVs.
-    Only considers files dated within the last `lookback_days` days.
+    Parse raw files in FILE3_RAW dated within the last `lookback_days` days that are
+    not yet reflected in the CSVs. Files whose date is already in all three CSVs are
+    skipped without being parsed, so a long window is cheap -- and it is what makes a
+    pipeline outage self-healing: once whatever broke is fixed, the next scan fills
+    every missing day, not just the most recent few (a fixed 10-day window left a
+    permanent hole after the Sept 30 - Nov 5 2026 outage).
     Returns (study1_changed, study2_changed, study3_changed).
     """
     cutoff = date.today() - timedelta(days=lookback_days)
     all_files = sorted(FILE3_RAW.glob("*_NLDC_PSP*"))
-    raw_files = [f for f in all_files if (d := _parse_file_date(f)) and d >= cutoff]
+    in_window = [f for f in all_files if (d := _parse_file_date(f)) and d >= cutoff]
+    present = _dates_in_all_csvs()
+    raw_files = [f for f in in_window if _parse_file_date(f).isoformat() not in present]
 
     if not raw_files:
-        print(f"No raw files found in Dataset/Raw/File3_Raw within the last {lookback_days} days.")
+        print(f"No unparsed raw files in Dataset/Raw/File3_Raw within the last {lookback_days} days "
+              f"({len(in_window)} checked, all already in the CSVs).")
         return False, False, False
 
-    print(f"Scanning {len(raw_files)} file(s) from {cutoff} onward (of {len(all_files)} total).")
+    print(f"Scanning {len(raw_files)} unparsed file(s) from {cutoff} onward "
+          f"({len(in_window)} in window, {len(all_files)} total).")
     s1_any = False
     s2_any = False
     s3_any = False
@@ -344,6 +363,9 @@ def main():
     parser.add_argument("--date", help="Target data date (YYYY-MM-DD). Default: yesterday.")
     parser.add_argument("--scan", action="store_true",
                         help="Parse all unparsed files in Dataset/Raw/File3_Raw (used for push-triggered runs).")
+    parser.add_argument("--lookback", type=int, default=DEFAULT_LOOKBACK_DAYS,
+                        help="With --scan: only consider raw files dated within this many days "
+                             f"(default {DEFAULT_LOOKBACK_DAYS}). Days already in the CSVs are skipped cheaply.")
     args = parser.parse_args()
 
     from download_psp_new import stem
@@ -355,8 +377,9 @@ def main():
 
     # ── Scan mode: parse whatever is already in File3_Raw ────────────────────
     if args.scan:
-        print("Scan mode: parsing all unparsed files in Dataset/Raw/File3_Raw...")
-        s1_changed, s2_changed, s3_changed = scan_and_parse()
+        print(f"Scan mode: parsing all unparsed files in Dataset/Raw/File3_Raw "
+              f"(last {args.lookback} days)...")
+        s1_changed, s2_changed, s3_changed = scan_and_parse(lookback_days=args.lookback)
     else:
         # ── Download mode: fetch a specific or today's file ──────────────────
         if args.date:
