@@ -882,6 +882,63 @@ def parse_xls(filepath):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# ── SOURCE-ERROR RECONCILIATION ───────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# NLDC's own reports sometimes print a "Share of RES" / "Share of Non-fossil" row
+# that disagrees with the sourcewise generation table right above it (stale share
+# rows in the 2022 PDFs; formula cells with outdated cached values in the XLS era,
+# e.g. 12.03.24 prints 96.76% RES). The gen rows sum to their Total on those days,
+# so the share is recomputed from them when the printed value is off by more than
+# SHARE_TOL_PP. Verified 2026-11-08 against the raw files, see
+# Pipeline/docs/parse_psp_pdf_xls_notes.md.
+SHARE_TOL_PP = 1.0
+
+# FVI (frequency variation index) is a small dimensionless number (all other days
+# 2018-2026 are below 0.43). 02.03.2021 prints 49.215 in the FVI cell, a frequency
+# in Hz typed into the wrong column. Anything outside [0, FVI_MAX] cannot be an FVI
+# and is nulled rather than shipped. Pipeline/validate.py enforces the same bound.
+FVI_MAX = 5.0
+
+
+def _reconcile_daily(row):
+    """Fix known source-side inconsistencies in a parsed daily row, in place."""
+    if not row:
+        return row
+    tag = row.get("date", "?")
+
+    def num(key):
+        v = row.get(key)
+        try:
+            v = float(v)
+        except (TypeError, ValueError):
+            return None
+        return None if v != v else v
+
+    total = num("gen_total_mu")
+    if total and total > 0:
+        res, hyd, nuc = num("gen_res_mu"), num("gen_hydro_mu"), num("gen_nuclear_mu")
+        targets = []
+        if res is not None:
+            targets.append(("share_res_pct", res / total * 100))
+            if hyd is not None and nuc is not None:
+                targets.append(("share_nonfossil_pct", (hyd + nuc + res) / total * 100))
+        for key, calc in targets:
+            printed = num(key)
+            if printed is None or abs(printed - calc) > SHARE_TOL_PP:
+                row[key] = round(calc, 2)
+                if printed is not None:
+                    print(f"  {tag}: {key} {printed} disagrees with gen table, "
+                          f"recomputed {round(calc, 2)}")
+
+    fvi = num("freq_fvi")
+    if fvi is not None and not (0 <= fvi <= FVI_MAX):
+        print(f"  {tag}: freq_fvi {fvi} outside [0, {FVI_MAX}], nulled (source typo)")
+        row["freq_fvi"] = None
+    return row
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # ── DISPATCHER ────────────────────────────────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -889,9 +946,9 @@ def parse_file(filepath):
     """Dispatch to PDF or XLS parser based on extension."""
     ext = Path(filepath).suffix.lower()
     if ext == ".pdf":
-        return parse_pdf(str(filepath))
+        return _reconcile_daily(parse_pdf(str(filepath)))
     elif ext in (".xls", ".xlsx"):
-        return parse_xls(str(filepath))
+        return _reconcile_daily(parse_xls(str(filepath)))
     else:
         print(f"  WARNING: unsupported extension '{ext}' -- {Path(filepath).name}")
         return None

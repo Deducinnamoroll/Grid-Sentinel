@@ -341,26 +341,6 @@ def _load_daily():
     df = pd.read_csv(DATASET_DIR / "study1_daily.csv", parse_dates=["date"])
     # .copy() de-fragments the 180-column frame (pandas PerformanceWarning).
     df = df.sort_values("date").reset_index(drop=True).copy()
-    # Display-only guard: share_res_pct should equal gen_res_mu / gen_total_mu.
-    # Where the two disagree by more than 1 percentage point the published
-    # share is a parse error (2024-03-12 reads 96.8% against ~11% from the
-    # generation columns), so blank it rather than chart a fake record. The
-    # dataset itself is not touched.
-    implied = df["gen_res_mu"] / df["gen_total_mu"] * 100
-    bad = (df["share_res_pct"] - implied).abs() > 1
-    if bad.any():
-        print(f"  masking share_res_pct on {int(bad.sum())} day(s) inconsistent with gen_res/gen_total: "
-              + ", ".join(df.loc[bad, "date"].dt.strftime("%Y-%m-%d")))
-        df.loc[bad, "share_res_pct"] = np.nan
-    # Same kind of guard for the frequency variation index: real values sit
-    # well under 1 (max 0.43 otherwise), but 2021-03-02 reads 49.215, which
-    # looks like a frequency in Hz parsed into the FVI cell. One such day
-    # flattens the daily FVI chart and triples 2021's yearly average.
-    bad_fvi = df["freq_fvi"] > 5
-    if bad_fvi.any():
-        print(f"  masking freq_fvi on {int(bad_fvi.sum())} day(s) above 5: "
-              + ", ".join(df.loc[bad_fvi, "date"].dt.strftime("%Y-%m-%d")))
-        df.loc[bad_fvi, "freq_fvi"] = np.nan
     return df
 
 
