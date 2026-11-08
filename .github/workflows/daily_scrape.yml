@@ -40,7 +40,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
-          pip install pandas openpyxl pdfplumber requests urllib3 xlrd "kaggle>=1.8.0" \
+          pip install pandas openpyxl pdfplumber requests urllib3 xlrd six "kaggle>=1.8.0" \
                       numpy scikit-learn lightgbm
 
       # ── 4. Run scraper ─────────────────────────────────────────────────────
@@ -121,6 +121,24 @@ jobs:
                   dashboard/public/data/dashboard.json
           git commit -m "chore: daily PSP update $(date -u +%Y-%m-%d)"
           git push
+
+      # ── 6b. Redeploy the dashboard on Vercel ──────────────────────────────
+      # The Vercel project lives on a teammate's Hobby account, and Hobby only
+      # auto-deploys commits authored by that account's owner, so this bot's
+      # pushes never trigger a build. A deploy hook builds the branch head
+      # regardless of who authored it. Skipped (not failed) until the
+      # VERCEL_DEPLOY_HOOK repo secret exists.
+      - name: Trigger Vercel deploy
+        if: steps.outcome.outputs.changed == 'true'
+        env:
+          VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$VERCEL_DEPLOY_HOOK" ]; then
+            curl -fsS -X POST "$VERCEL_DEPLOY_HOOK"
+          else
+            echo "VERCEL_DEPLOY_HOOK not set -- skipping dashboard redeploy."
+          fi
+        continue-on-error: true
 
       # ── 7. Push updated datasets to Kaggle ────────────────────────────────
       # Dataset/Raw/ contains thousands of raw XLS/PDF files that must not
