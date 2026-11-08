@@ -5,11 +5,14 @@ on:
     paths:
       - 'Dataset/Raw/File2_Raw/**'
       - 'Dataset/Raw/File3_Raw/**'
-  # Daily safety net, so data still arrives (and the stale-data alarm still fires)
-  # on days when nobody pushes raw files. 10:30 UTC = 16:00 IST, after NLDC has
-  # usually published the previous day's report. A public repo's Actions minutes
-  # are free; this is one ~3-minute run a day. GitHub pauses scheduled workflows
-  # after 60 days without repo activity; the daily data commits prevent that.
+  # Watchdog only. New data arrives solely from the raw-file push by the local
+  # scheduler (Scrapings/local_download.py): GitHub's runners cannot download NLDC
+  # files (the browser-free CDN route fails there and Playwright is not installed),
+  # which is why the original crons were dropped on 2026-06-24. This daily run
+  # exists so the stale-data step at the end still fires, and turns the run red,
+  # when the local scheduler has stopped pushing. 10:30 UTC = 16:00 IST. Free on a
+  # public repo, about a minute a day. GitHub pauses scheduled workflows after 60
+  # days without repo activity; the daily data commits prevent that.
   schedule:
     - cron: '30 10 * * *'
   workflow_dispatch:        # manual trigger from GitHub Actions tab
