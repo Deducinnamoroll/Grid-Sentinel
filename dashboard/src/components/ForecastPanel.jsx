@@ -15,6 +15,9 @@ export default function ForecastPanel({ forecast }) {
 
   const withActual = forecast.filter((r) => r.actual_mw !== null)
   const latest = forecast[forecast.length - 1]
+  // The newest forecasts target days not reported yet, so show the most
+  // recent forecast that has been scored next to the newest one.
+  const lastScored = withActual.length ? withActual[withActual.length - 1] : null
   const mapes = withActual.map((r) => Math.abs(r.residual_mw) / r.actual_mw)
   const avgMape = mapes.length ? (mapes.reduce((a, b) => a + b, 0) / mapes.length) * 100 : null
 
@@ -27,15 +30,24 @@ export default function ForecastPanel({ forecast }) {
   return (
     <SectionCard
       title="Study 1: Next-Day Demand Forecast"
-      subtitle="LightGBM baseline, retrained daily on all available history."
+      subtitle="LightGBM baseline, retrained daily on all available history. NLDC publishes each day's report the following afternoon, so every forecast is made for two days after the latest report: it appears the day before the day it predicts."
       accent="violet"
     >
       <StatGrid>
-        <StatCard value={fmtMW(latest.predicted_mw)} label="Latest forecast" sub={`for ${latest.target_date}`} />
-        <StatCard value={latest.actual_mw !== null ? fmtMW(latest.actual_mw) : 'N/A'} label="Actual (once known)" />
         <StatCard
-          value={latest.residual_mw !== null ? `${latest.residual_mw >= 0 ? '+' : ''}${Math.round(latest.residual_mw).toLocaleString('en-IN')} MW` : 'N/A'}
-          label="Latest error"
+          value={fmtMW(latest.predicted_mw)}
+          label="Latest forecast"
+          sub={`for ${latest.target_date}, from data through ${latest.prediction_made_date}`}
+        />
+        <StatCard
+          value={lastScored ? fmtMW(lastScored.actual_mw) : 'N/A'}
+          label="Latest actual"
+          sub={lastScored ? `${lastScored.target_date}, forecast ${fmtMW(lastScored.predicted_mw)}` : null}
+        />
+        <StatCard
+          value={lastScored ? `${lastScored.residual_mw >= 0 ? '+' : ''}${Math.round(lastScored.residual_mw).toLocaleString('en-IN')} MW` : 'N/A'}
+          label="Its error"
+          sub={lastScored ? `${((lastScored.residual_mw / lastScored.actual_mw) * 100).toFixed(1)}% (actual minus forecast)` : null}
         />
         <StatCard value={avgMape !== null ? avgMape.toFixed(2) + '%' : 'N/A'} label="Avg. MAPE (logged history)" />
       </StatGrid>

@@ -235,11 +235,11 @@ def build_feature_importance(study2_f):
 
     study1_f = _load_module("study1_features", STUDY1_DIR / "features.py")
 
-    # --- Study 1: next-day demand forecast ---
+    # --- Study 1: demand forecast, same 2-day horizon as ML/Study1/predict.py ---
     daily = pd.read_csv(DATASET_DIR / "study1_daily.csv", parse_dates=["date"])
     daily = daily.sort_values("date").reset_index(drop=True)
     feat_df = study1_f.build_feature_table(daily)
-    feat_df = study1_f.make_next_day_target(feat_df)
+    feat_df = study1_f.make_ahead_target(feat_df, horizon=2)
     TARGET = study1_f.TARGET
     feature_cols = [
         c for c in feat_df.columns

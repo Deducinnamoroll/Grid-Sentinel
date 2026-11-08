@@ -19,7 +19,7 @@ CI runs it every day in `.github/workflows/daily_scrape.yml` (step "Build dashbo
 python Pipeline/build_dashboard_data.py
 ```
 
-It takes about 15 to 20 seconds locally. Most of that is reloading the SCADA file and retraining the three models for feature importance.
+It takes about 15 to 20 seconds locally. Most of that is reloading the SCADA file and retraining the three models for feature importance. The Study 1 retrain uses the same two-day target as `ML/Study1/predict.py` (`make_ahead_target(horizon=2)`, since 2026-11-08), so its importances describe the live model.
 
 ---
 
