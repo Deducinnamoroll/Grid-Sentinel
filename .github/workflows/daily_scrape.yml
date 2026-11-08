@@ -5,6 +5,13 @@ on:
     paths:
       - 'Dataset/Raw/File2_Raw/**'
       - 'Dataset/Raw/File3_Raw/**'
+  # Daily safety net, so data still arrives (and the stale-data alarm still fires)
+  # on days when nobody pushes raw files. 10:30 UTC = 16:00 IST, after NLDC has
+  # usually published the previous day's report. A public repo's Actions minutes
+  # are free; this is one ~3-minute run a day. GitHub pauses scheduled workflows
+  # after 60 days without repo activity; the daily data commits prevent that.
+  schedule:
+    - cron: '30 10 * * *'
   workflow_dispatch:        # manual trigger from GitHub Actions tab
     inputs:
       date:
@@ -30,6 +37,12 @@ on:
 
 permissions:
   contents: write   # needed to commit updated CSVs back to repo
+
+# One run at a time: the schedule and a raw-file push can now land together, and
+# two runs appending to the same CSVs would race each other's commit.
+concurrency:
+  group: daily-scrape
+  cancel-in-progress: false
 
 jobs:
   update:
@@ -148,6 +161,8 @@ jobs:
                   Dataset/Raw/File2_Raw/ Dataset/Raw/File3_Raw/ \
                   dashboard/public/data/dashboard.json
           git commit -m "chore: daily PSP update $(date -u +%Y-%m-%d)"
+          # A raw-file push may have landed while this ran; replay on top of it.
+          git pull --rebase
           git push
 
       # ── 6b. Redeploy the dashboard on Vercel ──────────────────────────────

@@ -69,7 +69,7 @@ On 2026-09-30 NLDC began publishing `Bulk Consumer_WR/SR/ER/NER ISTS` rows in se
 2. A freshness step fails the run when the latest `study1_daily.csv` date is more than 5 days old (same threshold as `Pipeline/validate.py`'s `MAX_LAG_DAYS`).
 3. The scan window is 90 days with cheap skipping of already-parsed dates, so any outage repairs itself.
 
-Remaining limit: nothing runs if no push or manual dispatch happens at all. The workflow has no cron trigger; days arrive when the raw files are pushed.
+A daily schedule (10:30 UTC, added 2026-11-08) runs download mode even on days nobody pushes raw files, so data keeps arriving and the stale-data alarm can fire. Runs are serialized with a `concurrency` group, and the commit step rebases before pushing in case a raw-file push landed mid-run.
 
 ---
 
