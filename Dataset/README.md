@@ -25,7 +25,7 @@ All data is scraped from the **NLDC (National Load Despatch Centre) / Grid-India
 
 Reports are published in PDF format (up to ~2023) and XLS format (2023 onward). Each report covers the previous calendar day.
 
-**Scraper and full methodology:** [github.com/HalcyonVector/Grid-Sentinel](https://github.com/HalcyonVector/Grid-Sentinel)
+**Scraper and full methodology:** [github.com/Deducinnamoroll/Grid-Sentinel](https://github.com/Deducinnamoroll/Grid-Sentinel)
 
 ---
 
@@ -167,7 +167,7 @@ Source data is published by NLDC / Grid-India under India's National Data Sharin
 ```
 Halcyon Vector. (2026). India Power Grid — NLDC Daily PSP Reports [Dataset].
 Kaggle. https://www.kaggle.com/datasets/halcyonvector/india-power-grid-nldc-daily-psp-reports
-Scraper & methodology: https://github.com/HalcyonVector/Grid-Sentinel
+Scraper & methodology: https://github.com/Deducinnamoroll/Grid-Sentinel
 ```
 
 ---

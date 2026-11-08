@@ -72,8 +72,8 @@ function App() {
 
         <footer className="mt-2 pb-6 text-center text-xs text-slate-600">
           Data and models:{' '}
-          <a href="https://github.com/HalcyonVector/Grid-Sentinel" target="_blank" rel="noopener noreferrer" className="text-slate-500 underline decoration-white/20 hover:text-slate-300">
-            HalcyonVector/Grid-Sentinel
+          <a href="https://github.com/Deducinnamoroll/Grid-Sentinel" target="_blank" rel="noopener noreferrer" className="text-slate-500 underline decoration-white/20 hover:text-slate-300">
+            Deducinnamoroll/Grid-Sentinel
           </a>{' '}
           · Dataset on{' '}
           <a

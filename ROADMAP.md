@@ -364,7 +364,7 @@ GitHub repo (ML/ folder)
 **Concrete Colab setup, made explicit 2026-07-11** (this was previously only described at the "open notebook in Colab" level above — never spelled out precisely, which meant it had never actually been verified end-to-end). Every notebook in both `ML/Study1/notebooks/` and `ML/Study2/notebooks/` assumes the working directory is the **study folder itself** (`ML/Study1/` or `ML/Study2/`), not the `notebooks/` subfolder the `.ipynb` file lives in — that's what makes a bare `import features` and a relative `data/study1_daily.csv` / `data/study2_scada.csv` path resolve correctly, matching the convention Study 1's notebooks were already built with:
 
 ```
-!git clone https://github.com/HalcyonVector/Grid-Sentinel.git
+!git clone https://github.com/Deducinnamoroll/Grid-Sentinel.git
 %cd Grid-Sentinel/ML/Study1        # or ML/Study2 -- NOT .../notebooks
 !kaggle datasets download -d halcyonvector/india-power-grid-nldc-daily-psp-reports -p data --unzip
 # then open/run the desired notebook from ML/Study1/notebooks/ or ML/Study2/notebooks/
