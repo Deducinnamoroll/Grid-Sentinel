@@ -223,6 +223,25 @@ jobs:
           done
           echo "::warning title=Kaggle still processing::Not ready after 5 minutes. Check the dataset's Versions page."
 
+      # Read-only look at what Kaggle actually holds, next to the committed CSVs, so a
+      # silently dropped version shows up in the log (file sizes and dates differ).
+      # publish_kaggle=check runs only this, with no upload.
+      - name: Show what Kaggle holds
+        if: always() && (steps.outcome.outputs.changed == 'true' || github.event.inputs.publish_kaggle == 'yes' || github.event.inputs.publish_kaggle == 'check')
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        continue-on-error: true
+        run: |
+          slug=$(python -c "import json; print(json.load(open('Dataset/dataset-metadata.json'))['id'])")
+          echo "== Kaggle files ($slug) =="
+          kaggle datasets files "$slug" || true
+          echo "== Committed CSVs =="
+          ls -l --time-style=long-iso Dataset/study1_daily.csv Dataset/study2_scada.csv \
+                Dataset/study3_states.csv Dataset/study1_hourly.csv
+          echo "== Kaggle status =="
+          kaggle datasets status "$slug" || true
+
       # ── 8. Summary ─────────────────────────────────────────────────────────
       - name: Summary
         if: always()
