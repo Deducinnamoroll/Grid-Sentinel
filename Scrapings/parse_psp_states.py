@@ -131,6 +131,10 @@ STATE_TO_REGION = {
     # NER
     "Arunachal Pradesh": "NER", "Assam": "NER", "Manipur": "NER",
     "Meghalaya": "NER", "Mizoram": "NER", "Nagaland": "NER", "Tripura": "NER",
+    # Bulk-consumer ISTS rows that NLDC began publishing for the other four
+    # regions (first seen 2026-09-30); the suffix names the region directly.
+    "Bulk Consumer_WR ISTS": "WR", "Bulk Consumer_SR ISTS": "SR",
+    "Bulk Consumer_ER ISTS": "ER", "Bulk Consumer_NER ISTS": "NER",
 }
 
 
