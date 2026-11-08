@@ -114,7 +114,8 @@ jobs:
       # Retrains fresh each run (seconds, not minutes -- see ML/Study1/predict.py's
       # notes on why no separate model artifact is stored). Runs only when new
       # data actually arrived, and only after the CSV update so it forecasts from
-      # today's freshest row. Its output (Dataset/predictions/study1_forecast.csv)
+      # the freshest row. The target is that row's date + 2: the newest report is
+      # always yesterday's, so +2 is tomorrow as of this run. Its output (Dataset/predictions/study1_forecast.csv)
       # is committed in the same commit as the day's data update below.
       - name: Run Study 1 forecast
         if: steps.outcome.outputs.changed == 'true'

@@ -80,3 +80,33 @@ def make_next_day_target(df: pd.DataFrame, col: str = TARGET) -> pd.DataFrame:
     df[f"{col}_today"] = df[col]
     df[col] = df[col].shift(-1)
     return df
+
+
+def make_ahead_target(df: pd.DataFrame, horizon: int = 2, col: str = TARGET,
+                      date_col: str = "date") -> pd.DataFrame:
+    """
+    Like make_next_day_target(), but `horizon` calendar days ahead, matched
+    by DATE rather than by row. Used by predict.py for the live forecast
+    (added 2026-11-08).
+
+    Why a horizon of 2: NLDC publishes day D's report during day D+1, and
+    the daily CI run (16:00 IST) only sees it then. A forecast for D+1 is
+    therefore published on D+1 itself, with most of that day already gone.
+    Forecasting D+2 makes the published number a genuine next-day forecast:
+    on the day it appears, its target is tomorrow.
+
+    Why by date: study1_daily.csv has 59 gaps (the latest: 2025-05-22 and
+    2025-05-23 are missing). shift(-horizon) would pair a row with whatever row happens
+    to sit `horizon` places later, i.e. the wrong day around every gap.
+    Here a row whose target day is missing simply gets NaN and drops out of
+    training. make_next_day_target() keeps its row-based shift unchanged so
+    the notebooks and Study 2's residual signal reproduce exactly.
+
+    Same anchor rule as make_next_day_target(): run AFTER
+    build_feature_table(), and anchor on f"{col}_today", never on lag1.
+    """
+    df = df.copy()
+    df[f"{col}_today"] = df[col]
+    by_date = df.set_index(date_col)[col]
+    df[col] = (df[date_col] + pd.Timedelta(days=horizon)).map(by_date).values
+    return df

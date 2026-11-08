@@ -1,6 +1,13 @@
 """
 predict.py -- Daily inference for Study 1 (next-day national demand forecast).
 
+Horizon (changed 2026-11-08): the forecast targets HORIZON_DAYS = 2 days after
+the latest day in study1_daily.csv. NLDC publishes day D's report during D+1
+and CI runs at 16:00 IST, so a "latest + 1" forecast came out on the very day
+it predicted, two-thirds of the way through it. "Latest + 2" comes out the day
+before its target, which is what a next-day forecast is for. See
+make_ahead_target() in features.py.
+
 Retrains the LightGBM baseline fresh on every run rather than loading a saved
 model artifact. Training takes only a few seconds on this dataset size
 (~2,700 rows), which sidesteps an open question the roadmap flagged and left
@@ -11,20 +18,22 @@ a stale cached model silently drifting out of date.
 
 Maintains a persistent forecast/residual log at
 Dataset/predictions/study1_forecast.csv:
-  - Each run appends a new forecast row for "tomorrow" (the day after the
-    latest date currently in study1_daily.csv), if not already present.
+  - Each run appends a new forecast row for the latest date currently in
+    study1_daily.csv + HORIZON_DAYS (tomorrow, as seen on the day CI runs), if not
+    already present. prediction_made_date is the latest data day used, not
+    the day the run happened (that is one day later).
   - Each run also back-fills actual_mw/residual_mw for any earlier row whose
     target_date has since arrived in study1_daily.csv. This residual signal
     (actual - predicted) is what Phase 4 is designed to consume as an
     anomaly-detection input feature.
 
-Safe to run more than once on the same day: if a forecast for tomorrow
+Safe to run more than once on the same day: if a forecast for that target
 already exists in the log, it's left alone rather than duplicated or
 overwritten (matches update_live.py's idempotency convention).
 
 Usage:
-    python ML/Study1/predict.py                      # forecast for tomorrow (daily CI)
-    python ML/Study1/predict.py --date 2026-10-05    # as if run on 2026-10-05 (forecasts 10-06)
+    python ML/Study1/predict.py                      # latest data day + 2 (daily CI)
+    python ML/Study1/predict.py --date 2026-10-05    # data through 2026-10-05 (forecasts 10-07)
     python ML/Study1/predict.py --from 2026-09-30    # every day from there to the latest
                                                      # whose forecast is missing from the log
                                                      # (--to caps the range)
@@ -45,10 +54,14 @@ import lightgbm as lgb
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from features import build_feature_table, make_next_day_target, TARGET  # noqa: E402
+from features import build_feature_table, make_ahead_target, TARGET  # noqa: E402
 
 STUDY1_CSV = REPO_ROOT / "Dataset" / "study1_daily.csv"
 FORECAST_LOG = REPO_ROOT / "Dataset" / "predictions" / "study1_forecast.csv"
+
+# Days between the latest data day and the forecast target. 2 = the day after
+# CI publishes the forecast (see the module docstring).
+HORIZON_DAYS = 2
 
 FORECAST_COLS = ["prediction_made_date", "target_date", "predicted_mw", "actual_mw", "residual_mw"]
 
@@ -78,16 +91,16 @@ def _backfill_actuals(log: pd.DataFrame, daily: pd.DataFrame) -> pd.DataFrame:
 
 
 def train_and_predict(df: pd.DataFrame):
-    """Returns (forecast_mw, today_date, tomorrow_date)."""
+    """Returns (forecast_mw, latest_data_date, target_date)."""
     feat_df = build_feature_table(df)
-    feat_df = make_next_day_target(feat_df)
+    feat_df = make_ahead_target(feat_df, horizon=HORIZON_DAYS)
 
     feature_cols = [c for c in feat_df.columns if
                      c.startswith(FEATURE_PREFIXES) or c in CALENDAR_COLS]
 
     trainable = feat_df.dropna(subset=[f"{TARGET}_lag365"]).reset_index(drop=True)
     train_rows = trainable[trainable[TARGET].notna()]
-    predict_row = feat_df.iloc[[-1]]  # today's row: TARGET is NaN here (no "tomorrow" yet)
+    predict_row = feat_df.iloc[[-1]]  # latest row: TARGET is NaN here (its target day is in the future)
 
     if predict_row[f"{TARGET}_lag365"].isna().any():
         raise RuntimeError("Not enough history for the latest row to build lag365 -- cannot predict.")
@@ -113,14 +126,14 @@ def train_and_predict(df: pd.DataFrame):
     forecast = pred_delta + predict_row[f"{TARGET}_today"].values[0]
 
     today = pd.Timestamp(predict_row["date"].values[0])
-    tomorrow = today + pd.Timedelta(days=1)
-    return forecast, today, tomorrow
+    target = today + pd.Timedelta(days=HORIZON_DAYS)
+    return forecast, today, target
 
 
 def _select_made_dates(args, df: pd.DataFrame, log: pd.DataFrame) -> list:
-    """Days the forecast is 'made on'. Default: the latest day in the data (forecasts
-    tomorrow). --date: that one day. --from/--to: every data day in the range whose
-    forecast (made_date + 1) is not in the log yet."""
+    """Days the forecast is 'made on'. Default: the latest day in the data. --date:
+    that one day. --from/--to: every data day in the range whose forecast
+    (made_date + HORIZON_DAYS) is not in the log yet."""
     days = df["date"]
     latest = days.iloc[-1]
     if args.date:
@@ -134,7 +147,7 @@ def _select_made_dates(args, df: pd.DataFrame, log: pd.DataFrame) -> list:
         end = pd.Timestamp(args.to_date) if args.to_date else latest
         logged_targets = set(log["target_date"]) if not log.empty else set()
         return [d for d in days
-                if start <= d <= end and d + pd.Timedelta(days=1) not in logged_targets]
+                if start <= d <= end and d + pd.Timedelta(days=HORIZON_DAYS) not in logged_targets]
     return [latest]
 
 
@@ -160,17 +173,17 @@ def main():
 
     log = _backfill_actuals(log, df)
     for made_date in made_dates:
-        forecast, today, tomorrow = train_and_predict(df[df["date"] <= made_date].reset_index(drop=True))
+        forecast, today, target = train_and_predict(df[df["date"] <= made_date].reset_index(drop=True))
         print(f"Prediction made on data through {today.date()}")
-        print(f"Forecast for {tomorrow.date()}: {forecast:,.1f} MW")
+        print(f"Forecast for {target.date()}: {forecast:,.1f} MW")
 
-        already_predicted = (log["target_date"] == tomorrow).any() if not log.empty else False
+        already_predicted = (log["target_date"] == target).any() if not log.empty else False
         if already_predicted:
-            print(f"Forecast for {tomorrow.date()} already exists in the log -- not duplicating.")
+            print(f"Forecast for {target.date()} already exists in the log -- not duplicating.")
         else:
             new_row = pd.DataFrame([{
                 "prediction_made_date": today,
-                "target_date": tomorrow,
+                "target_date": target,
                 "predicted_mw": forecast,
                 "actual_mw": np.nan,
                 "residual_mw": np.nan,
@@ -180,6 +193,10 @@ def main():
     # A backfilled forecast's target day is usually already in the data, so fill its actual now.
     log = _backfill_actuals(log, df)
     log = log.sort_values("target_date").reset_index(drop=True)
+    # Rows appended to an empty log are plain Timestamps in an object column,
+    # which to_csv writes as "YYYY-MM-DD 00:00:00". Always write bare dates.
+    for c in ("prediction_made_date", "target_date"):
+        log[c] = pd.to_datetime(log[c]).dt.strftime("%Y-%m-%d")
     FORECAST_LOG.parent.mkdir(parents=True, exist_ok=True)
     log.to_csv(FORECAST_LOG, index=False)
 

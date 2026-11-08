@@ -28,7 +28,8 @@ Per the Phase 3 design (see `ROADMAP.md`), every reusable transform must live in
 | `add_lag_features()` | `{col}_lag1`, `_lag7`, `_lag365` — plain `.shift(lag)` on the target |
 | `add_rolling_features()` | `{col}_roll7_mean/std`, `_roll30_mean/std` — `.shift(1).rolling(w)`, so the current day is always excluded from its own rolling stats |
 | `build_feature_table()` | Runs the four functions above in order. Does **not** shift the target for next-day prediction — that's a separate, deliberately later step (see below) |
-| `make_next_day_target()` | Shifts `TARGET` forward by one day for next-day prediction, added 2026-07-10 (see "Bug found and fixed") |
+| `make_next_day_target()` | Shifts `TARGET` forward by one row for next-day prediction, added 2026-07-10 (see "Bug found and fixed"). Still used by the notebooks and by Study 2's residual signal |
+| `make_ahead_target(df, horizon=2)` | Sets `TARGET` to the value `horizon` calendar days later, matched by date, added 2026-11-08 for the live forecast (see "Two-day horizon") |
 
 ---
 
@@ -58,3 +59,24 @@ naive_preds = test[f"{TARGET}_today"]
 ```
 
 No external dependencies beyond `pandas`.
+
+---
+
+## Two-day horizon (added 2026-11-08)
+
+**Problem:** NLDC publishes day D's report during day D+1, and CI runs at 16:00 IST. A forecast for "latest + 1" was therefore published on the day it predicted, two-thirds of the way through it. It was a same-day estimate, not a next-day forecast.
+
+**Fix:** `make_ahead_target(df, horizon=2)`, used by `predict.py`. The target is the demand 2 calendar days after each row, so the live forecast is for the day after it is published.
+
+It matches by **date**, not by row. `study1_daily.csv` has 59 gaps (the latest: 2025-05-22 and 2025-05-23 are missing), and a row shift pairs a day with the wrong target around every gap. With the date match, a row whose target day is missing gets NaN and is dropped from training. `make_next_day_target()` keeps its original row shift so the notebooks and Study 2's `study1_residual_mw` feature reproduce exactly.
+
+Same anchor and ordering rules as above: run it after `build_feature_table()`, anchor on `{TARGET}_today`.
+
+**Cost in accuracy** (same split as `03_baseline.ipynb`: train to 2022, validate 2023, test 2024 onward, both horizons using the date-matched target):
+
+| Horizon | Test days | Model MAPE | Naive (repeat latest day) | Days within 2% |
+|---------|-----------|------------|---------------------------|----------------|
+| 1 day | 1,038 | 1.77% | 2.44% | 67% |
+| 2 days | 1,036 | 2.52% | 3.12% | 50% |
+
+The extra day costs about 0.75 points of MAPE; the model still beats naive persistence at both horizons.

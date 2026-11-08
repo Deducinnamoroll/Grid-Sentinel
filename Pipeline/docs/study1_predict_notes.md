@@ -1,7 +1,7 @@
 # Notes: ML/Study1/predict.py
 
 **Script:** `ML/Study1/predict.py`
-**Purpose:** Daily inference for Study 1 — produces tomorrow's national demand forecast, and maintains a running log of past forecasts vs. what actually happened. Built and wired into CI 2026-07-10, closing out the last deferred piece of Phase 3.
+**Purpose:** Daily inference for Study 1: produces the next day's national demand forecast (two days past the latest report, see "Horizon"), and maintains a running log of past forecasts vs. what actually happened. Built and wired into CI 2026-07-10, closing out the last deferred piece of Phase 3.
 
 ---
 
@@ -32,8 +32,8 @@ This is different from `03_baseline.ipynb`, which uses a fixed train/val/test sp
 
 | Column | Meaning |
 |--------|---------|
-| `prediction_made_date` | The date whose data was used to make this forecast |
-| `target_date` | The date being forecast (always `prediction_made_date + 1`) |
+| `prediction_made_date` | The latest data day used to make this forecast. CI actually runs one day later, when that day's report is published |
+| `target_date` | The date being forecast (always `prediction_made_date + 2` since 2026-11-08; `+ 1` before) |
 | `predicted_mw` | The forecast, in MW |
 | `actual_mw` | Filled in once `target_date` arrives in `study1_daily.csv`; blank until then |
 | `residual_mw` | `actual_mw - predicted_mw`, filled in alongside `actual_mw` |
@@ -58,7 +58,7 @@ Runs as a step in `.github/workflows/daily_scrape.yml`, after the daily scrape (
 
 ```
 python ML/Study1/predict.py                      # forecast for tomorrow (daily CI)
-python ML/Study1/predict.py --date 2026-10-05    # as if run on 2026-10-05 (forecasts 10-06)
+python ML/Study1/predict.py --date 2026-10-05    # data through 2026-10-05 (forecasts 10-07)
 python ML/Study1/predict.py --from 2026-09-30    # every day from there to the latest whose forecast is missing (--to caps it)
 ```
 
@@ -67,3 +67,17 @@ python ML/Study1/predict.py --from 2026-09-30    # every day from there to the l
 Same reason as Study 2: days CI missed during the 2026-09-30 to 2026-11-05 outage have no forecast row. For each requested day the frame is cut at that day before features and training, so the forecast sees only data through that day. Actual and residual are filled in straight away because the target day is already in the data. Safe to repeat: a day whose forecast row exists is skipped. 35 days takes about 20 seconds.
 
 Depends on `pandas`, `numpy`, `lightgbm` (added to CI's pip install list alongside the existing scraping dependencies).
+
+---
+
+## Horizon: two days past the latest report (changed 2026-11-08)
+
+NLDC publishes day D's report during D+1 and CI runs at 16:00 IST, so the newest data on any run is yesterday's. Until 2026-11-08 the script forecast "latest + 1", which is today by the time it ran: published with two-thirds of the target day already gone. It now forecasts `latest + HORIZON_DAYS` (2), which is tomorrow on the day it is published. On 2026-11-08's run (data through 11-07) the forecast is for 11-09.
+
+The target comes from `make_ahead_target()` in `features.py`, which matches target days by date so gaps in the data cannot mispair rows. Backtest cost, from that file's notes: MAPE 1.77% at one day, 2.52% at two days (naive persistence 2.44% and 3.12%).
+
+**The log was rebuilt** at the new horizon so it does not mix two horizons: `python ML/Study1/predict.py --from 2026-07-08`, every forecast cut at its own data day as usual. 123 rows; 121 scored at 2.89% MAPE over 2026-07-10 to 2026-11-07. The old one-day log (104 rows, 1.89%) is in git history before this change.
+
+**Date format fix:** rows appended to an empty log were written as `YYYY-MM-DD 00:00:00`; the script now always writes bare dates.
+
+**Not changed:** Study 2's `study1_residual_mw` feature is built separately in `ML/Study2/features.py` from the one-day target, not from this log, so Study 2 is unaffected.
