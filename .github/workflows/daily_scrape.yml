@@ -191,17 +191,37 @@ jobs:
              Dataset/README.md \
              Dataset/dataset-metadata.json \
              /tmp/kaggle_push/
+          ok=0
           for attempt in 1 2 3; do
             if kaggle datasets version \
                  -p /tmp/kaggle_push/ \
                  -m "Daily PSP update $(date -u +%Y-%m-%d)"; then
-              exit 0
+              ok=1
+              break
             fi
             echo "Kaggle version attempt $attempt of 3 failed."
             [ "$attempt" -lt 3 ] && sleep 60
           done
-          echo "::error title=Kaggle push failed::All 3 attempts to create a new dataset version failed."
-          exit 1
+          if [ "$ok" != "1" ]; then
+            echo "::error title=Kaggle push failed::All 3 attempts to create a new dataset version failed."
+            exit 1
+          fi
+
+          # The call above only means the upload was accepted. Kaggle builds the version
+          # in the background and can still reject it, so wait for its own verdict.
+          slug=$(python -c "import json; print(json.load(open('Dataset/dataset-metadata.json'))['id'])")
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            status=$(kaggle datasets status "$slug" 2>&1 || true)
+            echo "Kaggle dataset status after upload ($i/10): $status"
+            case "$status" in
+              *[Rr]eady*) exit 0 ;;
+              *[Ee]rror*|*[Ff]ailed*)
+                echo "::error title=Kaggle version failed::Kaggle accepted the upload but did not create the version. Status: $status"
+                exit 1 ;;
+            esac
+            sleep 30
+          done
+          echo "::warning title=Kaggle still processing::Not ready after 5 minutes. Check the dataset's Versions page."
 
       # ── 8. Summary ─────────────────────────────────────────────────────────
       - name: Summary
