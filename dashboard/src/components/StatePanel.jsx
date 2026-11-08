@@ -1,5 +1,6 @@
 import { SectionCard, StatCard, StatGrid, Empty } from './ui'
 import { fmtMW } from '../lib/format'
+import { REGION_LIGHT } from '../lib/colors'
 
 export default function StatePanel({ study3Latest }) {
   if (!study3Latest || !study3Latest.states.length) {
@@ -37,15 +38,25 @@ export default function StatePanel({ study3Latest }) {
       </StatGrid>
 
       <div className="mt-5 rounded-2xl border border-white/8 bg-black/20 p-4">
-        <div className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500">Top 10 states by demand met</div>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="text-xs font-medium uppercase tracking-wider text-slate-500">Top 10 states by demand met</div>
+          <div className="flex flex-wrap gap-3 text-[11px] text-slate-500">
+            {Object.entries(REGION_LIGHT).map(([r, c]) => (
+              <span key={r} className="inline-flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full" style={{ background: c }} />
+                {r}
+              </span>
+            ))}
+          </div>
+        </div>
         <div className="space-y-2">
           {top10.map((s) => (
             <div key={s.state} className="flex items-center gap-3">
               <div className="w-28 shrink-0 truncate text-xs text-slate-300">{s.state}</div>
               <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/5">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-500/70 to-emerald-400"
-                  style={{ width: `${(s.max_demand_met_mw / maxDemand) * 100}%` }}
+                  className="h-full rounded-full"
+                  style={{ width: `${(s.max_demand_met_mw / maxDemand) * 100}%`, background: REGION_LIGHT[s.region] || '#34d399' }}
                 />
               </div>
               <div className="w-20 shrink-0 text-right text-xs tabular-nums text-slate-400">

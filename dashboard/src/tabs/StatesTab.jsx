@@ -6,7 +6,7 @@ import { SectionCard, ChartBox, Pills, Select, Empty, ChartTooltip } from '../co
 import { AXIS, GRID } from '../lib/chart'
 import { zipColumns } from '../lib/data'
 import { fmtMonth, fmtNum, fmtMW, REGION_NAMES } from '../lib/format'
-import { sequential, diverging, SEQ_GRADIENT, DIV_GRADIENT, NO_DATA } from '../lib/colors'
+import { sequentialRamp, diverging, SEQ_GRADIENT, DIV_GRADIENT, NO_DATA, REGION_COLORS, REGION_LIGHT } from '../lib/colors'
 
 // study3 entity name (as cleaned by build_dashboard_data.py) -> map polygon
 // ids in @svg-maps/india. DNH and DD is one merged UT in the data but two
@@ -23,35 +23,74 @@ const MAP_IDS = {
 }
 
 const METRICS = [
-  { id: 'energyMu', label: 'Energy, last 365 days', kind: 'log', fmt: (v) => fmtNum(v) + ' MU' },
-  { id: 'peakMw', label: 'Peak demand, last 365 days', kind: 'log', fmt: (v) => fmtMW(v) },
-  { id: 'growthPct', label: 'Energy growth vs prior year', kind: 'div', fmt: (v) => (v >= 0 ? '+' : '') + v.toFixed(1) + '%' },
-  { id: 'shortageMu', label: 'Energy shortage, last 365 days', kind: 'log1p', fmt: (v) => fmtNum(v, 1) + ' MU' },
+  { id: 'energyMu', label: 'Energy, last 365 days', kind: 'log', ramp: 'sky', tone: 'sky', fmt: (v) => fmtNum(v) + ' MU' },
+  { id: 'peakMw', label: 'Peak demand, last 365 days', kind: 'log', ramp: 'violet', tone: 'violet', fmt: (v) => fmtMW(v) },
+  { id: 'growthPct', label: 'Energy growth vs prior year', kind: 'div', tone: 'rose', fmt: (v) => (v >= 0 ? '+' : '') + v.toFixed(1) + '%' },
+  { id: 'shortageMu', label: 'Energy shortage, last 365 days', kind: 'log1p', ramp: 'amber', tone: 'amber', fmt: (v) => fmtNum(v, 1) + ' MU' },
 ]
 
+const REGIONS = ['NR', 'WR', 'SR', 'ER', 'NER']
+
+// One scale shared by the map and the ranking, so a row's bar is the same
+// colour as its state on the map (the ranking doubles as a legend).
 function useScale(entities, metric) {
   return useMemo(() => {
     const vals = entities.map((e) => e[metric.id]).filter((v) => v !== null && v !== undefined)
-    if (!vals.length) return { color: () => NO_DATA, min: null, max: null }
+    if (!vals.length) return { color: () => NO_DATA, frac: () => 0, min: null, max: null, gradient: SEQ_GRADIENT }
     if (metric.kind === 'div') {
       const cap = Math.max(...vals.map(Math.abs), 1)
-      return { color: (v) => diverging(v / cap), min: -cap, max: cap }
+      return { color: (v) => diverging(v / cap), frac: (v) => Math.abs(v) / cap, min: -cap, max: cap, gradient: DIV_GRADIENT }
     }
+    const ramp = sequentialRamp(metric.ramp)
     const f = metric.kind === 'log1p' ? (v) => Math.log1p(v) : (v) => Math.log(Math.max(v, 1))
     const lo = f(Math.min(...vals))
     const hi = f(Math.max(...vals))
-    return { color: (v) => sequential(hi === lo ? 1 : (f(v) - lo) / (hi - lo)), min: Math.min(...vals), max: Math.max(...vals) }
+    const max = Math.max(...vals)
+    return {
+      color: (v) => ramp.color(hi === lo ? 1 : (f(v) - lo) / (hi - lo)),
+      // Bar lengths are linear (true proportions); only the colour is log-scaled.
+      frac: (v) => (max ? v / max : 0),
+      min: Math.min(...vals),
+      max,
+      gradient: ramp.gradient,
+    }
   }, [entities, metric])
 }
 
-function IndiaMap({ states, metric, selected, onSelect }) {
+function RegionFilter({ value, onChange, counts }) {
+  const opts = [{ id: 'all', label: 'All regions' }, ...REGIONS.map((r) => ({ id: r, label: REGION_NAMES[r] }))]
+  return (
+    <div className="flex flex-wrap gap-2">
+      {opts.map((o) => {
+        const active = value === o.id
+        const color = o.id === 'all' ? '#94a3b8' : REGION_COLORS[o.id]
+        return (
+          <button
+            key={o.id}
+            type="button"
+            onClick={() => onChange(o.id)}
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition ${
+              active ? 'text-slate-100' : 'border-white/8 bg-white/[0.02] text-slate-400 hover:border-white/20 hover:text-slate-200'
+            }`}
+            style={active ? { borderColor: color, background: `${color}2e` } : undefined}
+          >
+            <span className="h-2 w-2 rounded-full" style={{ background: color }} />
+            {o.label}
+            <span className="tabular-nums text-slate-500">{counts[o.id] || 0}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function IndiaMap({ states, metric, scale, region, selected, onSelect }) {
   const [hover, setHover] = useState(null)
   const byId = useMemo(() => {
     const m = {}
     states.forEach((e) => (MAP_IDS[e.name] || []).forEach((id) => (m[id] = e)))
     return m
   }, [states])
-  const scale = useScale(states, metric)
   const hovered = hover ? byId[hover.id] : null
 
   return (
@@ -61,14 +100,16 @@ function IndiaMap({ states, metric, selected, onSelect }) {
           const e = byId[loc.id]
           const v = e ? e[metric.id] : null
           const isSel = e && selected === e.name
+          const dimmed = region !== 'all' && (!e || e.region !== region)
           return (
             <path
               key={loc.id}
               d={loc.path}
               fill={v === null || v === undefined ? NO_DATA : scale.color(v)}
+              fillOpacity={dimmed ? 0.15 : 1}
               stroke={isSel ? '#f8fafc' : '#0d1016'}
               strokeWidth={isSel ? 1.6 : 0.6}
-              className={e ? 'cursor-pointer transition-opacity hover:opacity-80' : ''}
+              className={e ? 'cursor-pointer hover:opacity-80' : ''}
               onMouseMove={(ev) => {
                 const box = ev.currentTarget.ownerSVGElement.parentNode.getBoundingClientRect()
                 setHover({ id: loc.id, name: loc.name, x: ev.clientX - box.left, y: ev.clientY - box.top })
@@ -94,7 +135,10 @@ function IndiaMap({ states, metric, selected, onSelect }) {
                   {hovered[metric.id] === null ? 'N/A' : metric.fmt(hovered[metric.id])}
                 </span>
               </div>
-              <div className="text-slate-500">{REGION_NAMES[hovered.region]} region · click for trend</div>
+              <div className="flex items-center gap-1.5 text-slate-500">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: REGION_COLORS[hovered.region] }} />
+                {REGION_NAMES[hovered.region]} region · click for trend
+              </div>
             </>
           ) : (
             <div className="text-slate-500">No grid data (island UT, not on the national grid)</div>
@@ -102,46 +146,98 @@ function IndiaMap({ states, metric, selected, onSelect }) {
         </div>
       )}
       <div className="mx-auto mt-3 max-w-[360px]">
-        <div className="h-2 rounded-full" style={{ background: metric.kind === 'div' ? DIV_GRADIENT : SEQ_GRADIENT }} />
+        <div className="h-2 rounded-full" style={{ background: scale.gradient }} />
         <div className="mt-1 flex justify-between text-[11px] tabular-nums text-slate-500">
           <span>{scale.min === null ? '' : metric.fmt(scale.min)}</span>
           {metric.kind === 'div' && <span>0%</span>}
           <span>{scale.max === null ? '' : metric.fmt(scale.max)}</span>
         </div>
-        {metric.kind !== 'div' && <div className="mt-0.5 text-center text-[10px] text-slate-600">log scale</div>}
+        {metric.kind !== 'div' && <div className="mt-0.5 text-center text-[10px] text-slate-600">map colour on a log scale</div>}
       </div>
     </div>
   )
 }
 
-function RankList({ states, metric, selected, onSelect }) {
+// Gold, silver, bronze for the top three.
+const MEDALS = ['#fbbf24', '#cbd5e1', '#fb923c']
+
+function RankList({ states, metric, scale, selected, onSelect }) {
   const ranked = [...states]
     .filter((e) => e[metric.id] !== null && e[metric.id] !== undefined)
     .sort((a, b) => b[metric.id] - a[metric.id])
+  const isDiv = metric.kind === 'div'
+  const showTotal = metric.id === 'energyMu' || metric.id === 'shortageMu'
+  const total = showTotal ? ranked.reduce((a, e) => a + e[metric.id], 0) : null
+
   return (
-    <div className="custom-scrollbar max-h-[460px] overflow-y-auto pr-1">
-      <table className="w-full text-xs">
-        <thead className="sticky top-0 bg-[#0d1016] text-left text-[11px] uppercase tracking-wider text-slate-500">
-          <tr>
-            <th className="py-1.5 font-medium">#</th>
-            <th className="py-1.5 font-medium">State / UT</th>
-            <th className="py-1.5 text-right font-medium">Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ranked.map((e, i) => (
-            <tr
-              key={e.name}
-              onClick={() => onSelect(e.name)}
-              className={`cursor-pointer border-t border-white/5 transition hover:bg-white/[0.03] ${selected === e.name ? 'bg-emerald-400/[0.07]' : ''}`}
-            >
-              <td className="py-1.5 pr-2 tabular-nums text-slate-600">{i + 1}</td>
-              <td className="py-1.5 text-slate-300">{e.name}</td>
-              <td className="py-1.5 text-right tabular-nums text-slate-300">{metric.fmt(e[metric.id])}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="flex flex-col rounded-2xl border border-white/8 bg-black/20">
+      <div className="flex items-baseline justify-between gap-2 border-b border-white/6 px-4 py-3">
+        <div className="text-xs font-medium uppercase tracking-wider text-slate-500">Ranking</div>
+        <div className="text-[11px] tabular-nums text-slate-500">
+          {ranked.length} states{total !== null ? ` · total ${metric.fmt(total)}` : ''}
+        </div>
+      </div>
+      {ranked.length ? (
+        <ol className="custom-scrollbar max-h-[520px] space-y-0.5 overflow-y-auto p-2">
+          {ranked.map((e, i) => {
+            const v = e[metric.id]
+            const pct = Math.max(2, scale.frac(v) * 100)
+            const isSel = selected === e.name
+            const regionColor = REGION_COLORS[e.region]
+            const valueClass = isDiv ? (v >= 0 ? 'text-sky-300' : 'text-rose-300') : 'text-slate-100'
+            return (
+              <li key={e.name}>
+                <button
+                  type="button"
+                  onClick={() => onSelect(e.name)}
+                  className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition ${
+                    isSel ? 'bg-white/[0.07] ring-1 ring-white/15' : 'hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <span
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums ${
+                      i < 3 ? 'text-[#0d1016]' : 'bg-white/[0.04] text-slate-500'
+                    }`}
+                    style={i < 3 ? { background: MEDALS[i] } : undefined}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate text-[13px] text-slate-200">{e.name}</span>
+                        <span
+                          className="shrink-0 rounded-md px-1.5 py-px text-[10px] font-semibold tracking-wide text-slate-100"
+                          style={{ background: `${regionColor}40`, boxShadow: `inset 0 0 0 1px ${regionColor}90` }}
+                          title={`${REGION_NAMES[e.region]} region`}
+                        >
+                          {e.region}
+                        </span>
+                      </span>
+                      <span className={`shrink-0 text-xs font-medium tabular-nums ${valueClass}`}>{metric.fmt(v)}</span>
+                    </span>
+                    <span className="relative mt-1.5 block h-1.5 w-full overflow-hidden rounded-full bg-white/[0.05]">
+                      {isDiv && <span className="absolute inset-y-0 left-1/2 w-px bg-white/20" />}
+                      <span
+                        className="absolute inset-y-0 rounded-full"
+                        style={
+                          isDiv
+                            ? { background: scale.color(v), width: `${pct / 2}%`, left: v >= 0 ? '50%' : `${50 - pct / 2}%` }
+                            : { background: scale.color(v), width: `${pct}%`, left: 0 }
+                        }
+                      />
+                    </span>
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ol>
+      ) : (
+        <div className="p-4">
+          <Empty>No state in this region has a value for this metric.</Empty>
+        </div>
+      )}
     </div>
   )
 }
@@ -168,6 +264,8 @@ function StateTrend({ data, selected, onSelect }) {
   const firstIdx = rows.findIndex((r) => r.value !== null)
   const shown = firstIdx > 0 ? rows.slice(firstIdx) : rows
   const lastMonth = data.months[data.months.length - 1]
+  // Line takes the selected state's region colour, same as its ranking chip.
+  const lineColor = REGION_LIGHT[data.entities.find((e) => e.name === selected)?.region] || '#34d399'
 
   return (
     <SectionCard
@@ -188,8 +286,8 @@ function StateTrend({ data, selected, onSelect }) {
                 <XAxis dataKey="month" {...AXIS} interval={Math.max(0, Math.floor(shown.length / 8))} />
                 <YAxis {...AXIS} tickFormatter={metric.tick} width={48} />
                 <Tooltip content={<ChartTooltip formatter={(v) => (v === null ? 'N/A' : metric.fmt(v))} />} />
-                <Line type="monotone" dataKey="value" name={metric.label} stroke="#34d399" strokeWidth={2} dot={false} isAnimationActive={false} />
-                <Brush dataKey="month" height={22} travellerWidth={8} stroke="#34d399" fill="rgba(52,211,153,0.05)" tickFormatter={() => ''} />
+                <Line type="monotone" dataKey="value" name={metric.label} stroke={lineColor} strokeWidth={2} dot={false} isAnimationActive={false} />
+                <Brush dataKey="month" height={22} travellerWidth={8} stroke={lineColor} fill="rgba(255,255,255,0.03)" tickFormatter={() => ''} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -242,7 +340,16 @@ export default function StatesTab({ data }) {
   const [metricId, setMetricId] = useState('energyMu')
   const [selected, setSelected] = useState(data.entities.find((e) => e.isState)?.name || '')
   const metric = METRICS.find((m) => m.id === metricId)
+  const [region, setRegion] = useState('all')
   const states = useMemo(() => data.entities.filter((e) => e.isState), [data.entities])
+  // Scale over all states, not the filtered region, so a state's colour
+  // never changes when the region filter does.
+  const scale = useScale(states, metric)
+  const regionCounts = useMemo(() => {
+    const c = { all: states.length }
+    states.forEach((e) => (c[e.region] = (c[e.region] || 0) + 1))
+    return c
+  }, [states])
 
   // Same shape the original single-page StatePanel was written against.
   const snapshot = useMemo(
@@ -250,7 +357,7 @@ export default function StatesTab({ data }) {
       totals: { ...data.totals, date: data.asOf },
       states: data.entities
         .filter((e) => e.latestDemandMw !== null)
-        .map((e) => ({ state: e.name, max_demand_met_mw: e.latestDemandMw, shortage_max_demand_mw: e.latestShortageMw || 0 }))
+        .map((e) => ({ state: e.name, region: e.region, max_demand_met_mw: e.latestDemandMw, shortage_max_demand_mw: e.latestShortageMw || 0 }))
         .sort((a, b) => b.max_demand_met_mw - a.max_demand_met_mw),
     }),
     [data],
@@ -268,13 +375,20 @@ export default function StatesTab({ data }) {
         subtitle={`Per-state figures over the 365 days to ${data.asOf}. Growth compares with the 365 days before that, and is shown only where both years are complete. Click a state for its trend.`}
         accent="emerald"
       >
-        <div className="mb-5">
-          <Pills options={METRICS} value={metricId} onChange={setMetricId} tone="emerald" />
+        <div className="mb-5 space-y-3">
+          <Pills options={METRICS} value={metricId} onChange={setMetricId} />
+          <RegionFilter value={region} onChange={setRegion} counts={regionCounts} />
         </div>
         {states.length ? (
-          <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
-            <IndiaMap states={states} metric={metric} selected={selected} onSelect={pick} />
-            <RankList states={states} metric={metric} selected={selected} onSelect={pick} />
+          <div className="grid items-start gap-6 lg:grid-cols-[3fr_2fr]">
+            <IndiaMap states={states} metric={metric} scale={scale} region={region} selected={selected} onSelect={pick} />
+            <RankList
+              states={region === 'all' ? states : states.filter((e) => e.region === region)}
+              metric={metric}
+              scale={scale}
+              selected={selected}
+              onSelect={pick}
+            />
           </div>
         ) : (
           <Empty>No state data.</Empty>

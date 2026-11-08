@@ -110,7 +110,7 @@ export function Pills({ options, value, onChange, tone = 'amber' }) {
           onClick={() => onChange(o.id)}
           className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
             value === o.id
-              ? PILL_TONES[tone]
+              ? PILL_TONES[o.tone || tone]
               : 'border-white/8 bg-white/[0.02] text-slate-400 hover:border-white/20 hover:text-slate-200'
           }`}
         >
