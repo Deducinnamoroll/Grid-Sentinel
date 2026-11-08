@@ -28,3 +28,19 @@ export function index0to100(values) {
 export function shortCorridorName(name) {
   return name.replace('ir_', '').replace('_net_mu', '').replace('xb_net_', '').replace(/_/g, '-')
 }
+
+// "2026-11" -> "Nov 26"
+export function fmtMonth(ym) {
+  return fmtDateShort(ym + '-01')
+}
+
+export function fmtNum(v, digits = 0) {
+  if (v === null || v === undefined || Number.isNaN(v)) return 'N/A'
+  return Number(v).toLocaleString('en-IN', { maximumFractionDigits: digits, minimumFractionDigits: digits })
+}
+
+export function fmtMU(v, digits = 0) {
+  return v === null || v === undefined || Number.isNaN(v) ? 'N/A' : fmtNum(v, digits) + ' MU'
+}
+
+export const REGION_NAMES = { NR: 'Northern', WR: 'Western', SR: 'Southern', ER: 'Eastern', NER: 'North-Eastern' }

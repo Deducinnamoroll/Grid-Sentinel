@@ -1,43 +1,40 @@
-"""Build the data file the Phase 5 dashboard (dashboard/) consumes.
+"""Build the per-tab data files the Phase 5 dashboard (dashboard/) consumes.
 
 The dashboard is a static React app with no backend, it fetches JSON
-directly from the browser. study1_hourly.csv (36MB) and study2_scada.csv
-(60MB) are far too large to fetch client-side just to show a monthly trend
-or a single day's timeline, so this script precomputes the small aggregates
-the frontend actually needs and writes one JSON file to
-dashboard/public/data/. Re-run whenever the source datasets update (wired
-into daily_scrape.yml).
+directly from the browser. study1_hourly.csv (36MB), study2_scada.csv
+(60MB) and study3_states.csv are far too large to fetch client-side just to
+show a monthly trend or a single day's timeline, so this script precomputes
+the small aggregates each tab actually needs. Each tab gets its own JSON
+file, fetched only when that tab is first opened, so the Overview tab never
+pays for the Models tab's 15-min risk history. Re-run whenever the source
+datasets update (wired into daily_scrape.yml).
 
-Output: dashboard/public/data/dashboard.json, containing:
-  dailySlim         -- study1_daily.csv trimmed to the ~15 columns the
-                        Historical Explorer and Live Grid Status panels use,
-                        full 2019-present date range (144 cols -> 15 shrinks
-                        the payload from ~2.1MB to a few hundred KB, not the
-                        36-60MB the raw hourly/SCADA files would cost).
-  era1Monthly       -- same monthly ramp-magnitude/frequency vs RES-share
-                        aggregation as 04_era1_ramp_characterization.ipynb.
-  era2CorridorCorr  -- same per-corridor/per-country correlation-vs-stress
-                        numbers as 00_era2_daily_correlation.ipynb.
-  forecast          -- Dataset/predictions/study1_forecast.csv, as records.
-  risk              -- Dataset/predictions/study2_risk.csv, as records.
-  hourDowHeatmap    -- violation/ramp rate by hour x day-of-week, same
-                        pivot as 01_eda.ipynb's appendix cell (the Sunday
-                        decoupling finding).
-  monthSeasonality  -- violation/ramp rate by month, same as 01_eda.ipynb.
-  solarHourRates    -- violation/ramp rate, solar vs non-solar hour.
-  resShareFindings  -- pooled violation-rate-by-quintile (the project's
-                        central-thesis chart) and the pooled-vs-within-month
-                        ramp-rate reversal (the season-confounding finding).
-  featureImportance -- real, freshly retrained feature_importances_ for all
-                        three models (Study 1 demand baseline, Study 2
-                        violation classifier, Study 2 ramp-shock classifier),
-                        same training procedure as the baseline notebooks,
-                        plus each classifier's VAL-selected best-F1
-                        threshold (same methodology-fix pattern as
-                        03_violation_baseline.ipynb/04_ramp_shock_baseline.ipynb:
-                        selected on VAL, not on the same data being judged).
-  study3Latest      -- study3_states.csv's latest date, per-state demand and
-                        shortage, sorted by demand descending.
+Output: dashboard/public/data/<tab>.json, one file per dashboard tab:
+  overview.json     -- latest two days of the slim daily columns (Live Grid
+                        Status + generation mix), the full 2019-present
+                        demand/RES-share history, and the Era 1 monthly ramp
+                        and Era 2 corridor-correlation tables (Historical
+                        Explorer).
+  states.json       -- study3_states.csv: latest-day snapshot, a 365-day
+                        summary per entity (the India map's metrics), and a
+                        monthly per-entity history (the trend picker).
+  flows.json        -- inter-regional corridor nets (ir_*, 2023 on) and
+                        cross-border exchange (xb_*, mid-2023 on): daily nets,
+                        latest-day detail and monthly import/export.
+  renewables.json   -- monthly solar/wind/hydro generation and RES share
+                        since 2019, yearly totals, regional split, and the
+                        monthly-average 15-min "duck curve" from SCADA.
+  reliability.json  -- daily frequency-band compliance, FVI, forced outages
+                        and shortage since 2019, plus monthly regional
+                        breakdowns and a per-year summary.
+  models.json       -- Study 1 forecast log, Study 2 risk log (grouped by
+                        day as arrays, about 4x smaller than records), live
+                        calibration of the risk models, the Era 3 EDA
+                        findings and freshly retrained feature importance.
+
+Every file carries "asOf" (the latest date it covers). Long series are
+"columnar" ({"date": [...], "x": [...]}) rather than row records, which
+roughly halves their size; the frontend zips them back into rows.
 """
 
 import importlib.util
@@ -51,7 +48,7 @@ from sklearn.metrics import precision_recall_curve
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DATASET_DIR = REPO_ROOT / "Dataset"
 OUT_DIR = REPO_ROOT / "dashboard" / "public" / "data"
-OUT_FILE = OUT_DIR / "dashboard.json"
+LEGACY_FILE = OUT_DIR / "dashboard.json"  # pre-tabs single file, removed on build
 
 STUDY1_DIR = REPO_ROOT / "ML" / "Study1"
 STUDY2_DIR = REPO_ROOT / "ML" / "Study2"
@@ -89,14 +86,6 @@ def _load_module(name, path):
 def clean_records(df):
     """NaN isn't valid JSON, convert to None so json.dump emits `null`."""
     return json.loads(df.to_json(orient="records", date_format="iso"))
-
-
-def build_daily_slim():
-    df = pd.read_csv(DATASET_DIR / "study1_daily.csv", parse_dates=["date"])
-    df = df.sort_values("date")
-    slim = df[STUDY1_DAILY_SLIM_COLS].copy()
-    slim["date"] = slim["date"].dt.strftime("%Y-%m-%d")
-    return clean_records(slim)
 
 
 def build_era1_monthly():
@@ -168,38 +157,6 @@ def build_era2_corridor_corr():
 
     out_df = pd.DataFrame(rows).dropna(subset=["corr"])
     return clean_records(out_df)
-
-
-def build_study3_latest():
-    """study3_states.csv is otherwise unused anywhere in the dashboard --
-    it's a full third study (state-level PSP breakdown), published on
-    Kaggle and updated daily by CI, but had zero representation here.
-    Ships just the latest date's per-state snapshot, not full history --
-    99,489 rows of state-level history would be a needless payload for a
-    single "state status" panel; a historical per-state explorer would be
-    a bigger, separate feature."""
-    df = pd.read_csv(DATASET_DIR / "study3_states.csv", parse_dates=["date"])
-    latest_date = df["date"].max()
-    latest = df[df["date"] == latest_date].copy()
-    latest = latest.sort_values("max_demand_met_mw", ascending=False)
-
-    states = clean_records(
-        latest[["region", "state", "max_demand_met_mw", "shortage_max_demand_mw", "energy_shortage_mu"]]
-    )
-    totals = {
-        "date": latest_date.strftime("%Y-%m-%d"),
-        "totalDemand": float(latest["max_demand_met_mw"].sum()),
-        "totalShortage": float(latest["shortage_max_demand_mw"].sum()),
-        "stateCount": int(len(latest)),
-        "statesWithShortage": int((latest["shortage_max_demand_mw"] > 0).sum()),
-    }
-    return {"date": totals["date"], "totals": totals, "states": states}
-
-
-def build_predictions():
-    forecast = pd.read_csv(DATASET_DIR / "predictions" / "study1_forecast.csv")
-    risk = pd.read_csv(DATASET_DIR / "predictions" / "study2_risk.csv")
-    return clean_records(forecast), clean_records(risk)
 
 
 def _load_study2_base_df(f):
@@ -347,30 +304,435 @@ def build_feature_importance(study2_f):
     }
 
 
+# ---------------------------------------------------------------------------
+# Per-tab builders (dashboard tabs, 2026-11-08)
+# ---------------------------------------------------------------------------
+
+REGIONS = ["nr", "wr", "sr", "er", "ner"]
+CORRIDORS = ["er_nr", "er_wr", "er_sr", "er_ner", "ner_nr", "wr_nr", "wr_sr"]
+XB_COUNTRIES = ["bhutan", "nepal", "bangladesh", "myanmar"]
+
+
+def columnar(df, digits=None):
+    """{"col": [values...]} with NaN -> None. `digits` maps column -> round()
+    precision; 0 turns the column into ints. Columnar beats row records here
+    because the key names are not repeated once per row."""
+    digits = digits or {}
+    out = {}
+    for c in df.columns:
+        s = df[c]
+        if c in digits:
+            s = s.round(digits[c])
+        vals = s.tolist()
+        if digits.get(c) == 0:
+            out[c] = [None if pd.isna(v) else int(v) for v in vals]
+        else:
+            out[c] = [None if (isinstance(v, float) and np.isnan(v)) else v for v in vals]
+    return out
+
+
+def _fnum(v, nd=2):
+    if v is None or pd.isna(v):
+        return None
+    return int(round(float(v))) if nd == 0 else round(float(v), nd)
+
+
+def _load_daily():
+    df = pd.read_csv(DATASET_DIR / "study1_daily.csv", parse_dates=["date"])
+    # .copy() de-fragments the 180-column frame (pandas PerformanceWarning).
+    df = df.sort_values("date").reset_index(drop=True).copy()
+    # Display-only guard: share_res_pct should equal gen_res_mu / gen_total_mu.
+    # Where the two disagree by more than 1 percentage point the published
+    # share is a parse error (2024-03-12 reads 96.8% against ~11% from the
+    # generation columns), so blank it rather than chart a fake record. The
+    # dataset itself is not touched.
+    implied = df["gen_res_mu"] / df["gen_total_mu"] * 100
+    bad = (df["share_res_pct"] - implied).abs() > 1
+    if bad.any():
+        print(f"  masking share_res_pct on {int(bad.sum())} day(s) inconsistent with gen_res/gen_total: "
+              + ", ".join(df.loc[bad, "date"].dt.strftime("%Y-%m-%d")))
+        df.loc[bad, "share_res_pct"] = np.nan
+    # Same kind of guard for the frequency variation index: real values sit
+    # well under 1 (max 0.43 otherwise), but 2021-03-02 reads 49.215, which
+    # looks like a frequency in Hz parsed into the FVI cell. One such day
+    # flattens the daily FVI chart and triples 2021's yearly average.
+    bad_fvi = df["freq_fvi"] > 5
+    if bad_fvi.any():
+        print(f"  masking freq_fvi on {int(bad_fvi.sum())} day(s) above 5: "
+              + ", ".join(df.loc[bad_fvi, "date"].dt.strftime("%Y-%m-%d")))
+        df.loc[bad_fvi, "freq_fvi"] = np.nan
+    return df
+
+
+def _monthly_mean(df, cols):
+    """Monthly mean of each column (a per-day average, so the current, still
+    partial month is directly comparable to complete ones)."""
+    m = df.set_index("date")[cols].resample("MS").mean().reset_index()
+    m["month"] = m["date"].dt.strftime("%Y-%m")
+    return m.drop(columns="date")[["month"] + cols]
+
+
+# --- Overview ---------------------------------------------------------------
+
+def build_overview(daily):
+    slim = daily[STUDY1_DAILY_SLIM_COLS].copy()
+    slim["date"] = slim["date"].dt.strftime("%Y-%m-%d")
+    hist = daily[["date", "max_demand_met_total_mw", "share_res_pct"]].copy()
+    hist["date"] = hist["date"].dt.strftime("%Y-%m-%d")
+    hist.columns = ["date", "demand", "res"]
+    return {
+        "asOf": slim["date"].iloc[-1],
+        "latest": clean_records(slim.tail(2)),
+        "history": columnar(hist, {"demand": 0, "res": 2}),
+        "era1Monthly": build_era1_monthly(),
+        "era2CorridorCorr": build_era2_corridor_corr(),
+    }
+
+
+# --- States -----------------------------------------------------------------
+
+# study3 labels -> display names. DD and DNH were separate rows until the
+# 2022-06 merger into one DNHDDPDCL utility; summing the two older rows into
+# the merged name keeps a single continuous series for the merged UT.
+STATE_RENAME = {
+    "HP": "Himachal Pradesh",
+    "MP": "Madhya Pradesh",
+    "UP": "Uttar Pradesh",
+    "J&K(UT) & Ladakh(UT)": "J&K and Ladakh",
+    "DD": "DNH and DD",
+    "DNH": "DNH and DD",
+    "DNHDDPDCL": "DNH and DD",
+}
+# Rows that are grid entities, not states/UTs: no polygon on the map, listed
+# separately in the UI.
+NON_STATE_PREFIXES = ("Bulk Consumer_", "Railways_")
+NON_STATE_NAMES = {"DVC", "AMNSIL", "BALCO", "Essar steel", "RIL JAMNAGAR"}
+
+
+def _is_state(name):
+    return not (name in NON_STATE_NAMES or name.startswith(NON_STATE_PREFIXES))
+
+
+def build_states():
+    df = pd.read_csv(DATASET_DIR / "study3_states.csv", parse_dates=["date"])
+    df["state"] = df["state"].replace(STATE_RENAME)
+    num = ["max_demand_met_mw", "shortage_max_demand_mw", "energy_met_mu", "energy_shortage_mu"]
+    # Summing the pre-merger DD and DNH peaks overstates the merged peak a
+    # little (they peak at different times), but it is the closest proxy and
+    # only touches pre-2022-06 history of one small UT.
+    df = df.groupby(["date", "region", "state"], as_index=False)[num].sum(min_count=1)
+
+    latest_date = df["date"].max()
+    latest = df[df["date"] == latest_date].sort_values("max_demand_met_mw", ascending=False)
+
+    # Last 365 days vs the 365 before: the map's metrics.
+    w1 = df[df["date"] > latest_date - pd.Timedelta(days=365)]
+    w0 = df[(df["date"] <= latest_date - pd.Timedelta(days=365)) & (df["date"] > latest_date - pd.Timedelta(days=730))]
+    g1 = w1.groupby("state").agg(
+        region=("region", "last"),
+        peak_mw=("max_demand_met_mw", "max"),
+        energy_mu=("energy_met_mu", "sum"),
+        shortage_mu=("energy_shortage_mu", "sum"),
+        shortage_days=("energy_shortage_mu", lambda x: int((x > 0).sum())),
+        days=("date", "nunique"),
+    )
+    g0 = w0.groupby("state").agg(energy_prev_mu=("energy_met_mu", "sum"), days_prev=("date", "nunique"))
+    summary = g1.join(g0, how="left")
+    # Only compare like with like: both windows must be (nearly) complete,
+    # otherwise an entity that started reporting mid-window shows fake growth.
+    ok = (summary["days"] >= 360) & (summary["days_prev"] >= 360) & (summary["energy_prev_mu"] > 0)
+    summary["growth_pct"] = np.where(ok, (summary["energy_mu"] / summary["energy_prev_mu"] - 1) * 100, np.nan)
+    summary = summary.reset_index().sort_values("energy_mu", ascending=False)
+
+    latest_by_state = latest.set_index("state")
+    entities = []
+    for r in summary.itertuples():
+        lat = latest_by_state.loc[r.state] if r.state in latest_by_state.index else None
+        entities.append({
+            "name": r.state,
+            "region": r.region,
+            "isState": _is_state(r.state),
+            "peakMw": _fnum(r.peak_mw, 0),
+            "energyMu": _fnum(r.energy_mu, 1),
+            "shortageMu": _fnum(r.shortage_mu, 2),
+            "shortageDays": int(r.shortage_days),
+            "growthPct": _fnum(r.growth_pct, 2),
+            "latestDemandMw": _fnum(lat["max_demand_met_mw"], 0) if lat is not None else None,
+            "latestShortageMw": _fnum(lat["shortage_max_demand_mw"], 0) if lat is not None else None,
+        })
+
+    # Monthly history per entity: peak demand (max), avg daily energy and
+    # avg daily shortage (per-day averages so a partial month isn't a dip).
+    df["month"] = df["date"].dt.to_period("M")
+    months = pd.period_range(df["month"].min(), df["month"].max(), freq="M")
+    monthly = df.groupby(["state", "month"]).agg(
+        peak=("max_demand_met_mw", "max"),
+        energy=("energy_met_mu", "mean"),
+        shortage=("energy_shortage_mu", "mean"),
+    )
+    history = {}
+    for state, g in monthly.groupby(level=0):
+        g = g.droplevel(0).reindex(months)
+        history[state] = columnar(g.reset_index(drop=True), {"peak": 0, "energy": 2, "shortage": 3})
+
+    totals = {
+        "totalDemand": float(latest["max_demand_met_mw"].sum()),
+        "totalShortage": float(latest["shortage_max_demand_mw"].sum()),
+        "stateCount": int(len(latest)),
+        "statesWithShortage": int((latest["shortage_max_demand_mw"] > 0).sum()),
+    }
+    return {
+        "asOf": latest_date.strftime("%Y-%m-%d"),
+        "totals": totals,
+        "entities": entities,
+        "months": [str(m) for m in months],
+        "history": history,
+    }
+
+
+# --- Power flows ------------------------------------------------------------
+
+def _latest_detail(daily, keys, cols_for):
+    """Latest day that has any of the given columns, as import/export/net
+    per key. cols_for(key) -> [import_col, export_col, net_col]."""
+    all_cols = [c for k in keys for c in cols_for(k)]
+    rows = daily.dropna(subset=all_cols, how="all")
+    if rows.empty:
+        return None
+    row = rows.iloc[-1]
+    items = []
+    for k in keys:
+        imp, exp, net = cols_for(k)
+        items.append({"key": k, "import": _fnum(row[imp]), "export": _fnum(row[exp]), "net": _fnum(row[net])})
+    return {"date": row["date"].strftime("%Y-%m-%d"), "items": items}
+
+
+def build_flows(daily):
+    ir_net = [f"ir_{c}_net_mu" for c in CORRIDORS]
+    xb_net = [f"xb_net_{c}_mu" for c in XB_COUNTRIES]
+    sub = daily[daily["date"] >= "2023-01-01"][["date"] + ir_net + xb_net].copy()
+    sub = sub.dropna(subset=ir_net + xb_net, how="all")
+    sub.columns = ["date"] + CORRIDORS + XB_COUNTRIES
+    sub["date"] = sub["date"].dt.strftime("%Y-%m-%d")
+
+    ir_latest = _latest_detail(daily, CORRIDORS, lambda k: [f"ir_{k}_import_mu", f"ir_{k}_export_mu", f"ir_{k}_net_mu"])
+    xb_latest = _latest_detail(daily, XB_COUNTRIES, lambda k: [f"xb_import_{k}_mu", f"xb_export_{k}_mu", f"xb_net_{k}_mu"])
+
+    xb_cols = [f"xb_{d}_{c}_mu" for c in XB_COUNTRIES for d in ("import", "export")]
+    xb_daily = daily.dropna(subset=xb_cols, how="all")
+    xb_monthly = _monthly_mean(xb_daily, xb_cols)
+    xb_monthly.columns = ["month"] + [c[len("xb_"):-len("_mu")] for c in xb_cols]
+
+    ir_daily = daily.dropna(subset=ir_net, how="all")
+    ir_monthly = _monthly_mean(ir_daily, ir_net)
+    ir_monthly.columns = ["month"] + CORRIDORS
+
+    return {
+        "asOf": sub["date"].iloc[-1],
+        "daily": columnar(sub, {**{c: 1 for c in CORRIDORS}, **{c: 2 for c in XB_COUNTRIES}}),
+        "irMonthly": columnar(ir_monthly, {c: 1 for c in CORRIDORS}),
+        "xbMonthly": columnar(xb_monthly, {c: 2 for c in xb_monthly.columns if c != "month"}),
+        "irLatest": ir_latest,
+        "xbLatest": xb_latest,
+    }
+
+
+# --- Renewables -------------------------------------------------------------
+
+def build_renewables(daily, era3_df):
+    cols = ["solar_gen_total_mu", "wind_gen_total_mu", "hydro_gen_total_mu", "gen_res_mu",
+            "gen_total_mu", "share_res_pct", "share_nonfossil_pct"]
+    monthly = _monthly_mean(daily, cols)
+    monthly.columns = ["month", "solar", "wind", "hydro", "res", "total", "resShare", "nonFossilShare"]
+
+    yearly = daily.assign(year=daily["date"].dt.year).groupby("year").agg(
+        solar=("solar_gen_total_mu", "sum"), wind=("wind_gen_total_mu", "sum"),
+        days=("date", "nunique"),
+    ).reset_index()
+    yearly = yearly[yearly["year"] >= 2019]
+
+    latest_date = daily["date"].max()
+    last365 = daily[daily["date"] > latest_date - pd.Timedelta(days=365)]
+    regional = [
+        {"region": r.upper(),
+         "solar": _fnum(last365[f"solar_gen_{r}_mu"].sum(), 0),
+         "wind": _fnum(last365[f"wind_gen_{r}_mu"].sum(), 0)}
+        for r in REGIONS
+    ]
+
+    # Duck curve: average 15-min profile of each calendar month, from SCADA
+    # (Era 3, 2024-11 on). era3_df already had drop_bad_days() applied, so
+    # known-broken SCADA days don't distort the averages.
+    sc = era3_df[["date", "time", "demand_met_mw", "solar_mw", "wind_mw"]].copy()
+    sc["month"] = pd.to_datetime(sc["date"]).dt.strftime("%Y-%m")
+    prof = sc.groupby(["month", "time"])[["demand_met_mw", "solar_mw", "wind_mw"]].mean()
+    slots = sorted(sc["time"].unique())
+    duck = {}
+    for month, g in prof.groupby(level=0):
+        g = g.droplevel(0).reindex(slots)
+        duck[month] = {
+            "demand": [None if pd.isna(v) else int(round(v)) for v in g["demand_met_mw"]],
+            "solar": [None if pd.isna(v) else int(round(v)) for v in g["solar_mw"]],
+            "wind": [None if pd.isna(v) else int(round(v)) for v in g["wind_mw"]],
+        }
+
+    best_res = daily.loc[daily["share_res_pct"].idxmax()]
+    best_solar = daily.loc[daily["solar_gen_total_mu"].idxmax()]
+    peak_slot = sc.loc[sc["solar_mw"].idxmax()]
+    records = {
+        "maxResShare": {"date": best_res["date"].strftime("%Y-%m-%d"), "value": _fnum(best_res["share_res_pct"])},
+        "maxSolarDay": {"date": best_solar["date"].strftime("%Y-%m-%d"), "value": _fnum(best_solar["solar_gen_total_mu"], 1)},
+        "maxSolarSlot": {"date": str(peak_slot["date"])[:10], "time": str(peak_slot["time"]), "value": _fnum(peak_slot["solar_mw"], 0)},
+    }
+
+    return {
+        "asOf": latest_date.strftime("%Y-%m-%d"),
+        "monthly": columnar(monthly, {"solar": 1, "wind": 1, "hydro": 1, "res": 1, "total": 0,
+                                      "resShare": 2, "nonFossilShare": 2}),
+        "yearly": [
+            {"year": int(r.year), "solar": _fnum(r.solar, 0), "wind": _fnum(r.wind, 0), "days": int(r.days)}
+            for r in yearly.itertuples()
+        ],
+        "regional": regional,
+        "duck": {"slots": [str(s) for s in slots], "months": sorted(duck), "profiles": duck},
+        "records": records,
+    }
+
+
+# --- Reliability ------------------------------------------------------------
+
+def build_reliability(daily):
+    keep = {
+        "freq_fvi": "fvi", "freq_pct_below_499": "below", "freq_pct_499_5005": "inBand",
+        "freq_pct_above_5005": "above", "outage_total_total_mw": "outage",
+        "energy_shortage_total_mu": "shortageMu", "peak_shortage_total_mw": "peakShortageMw",
+    }
+    d = daily[["date"] + list(keep)].rename(columns=keep)
+    d_out = d.copy()
+    d_out["date"] = d_out["date"].dt.strftime("%Y-%m-%d")
+
+    outage_cols = [f"outage_total_{r}_mw" for r in REGIONS] + ["outage_central_total_mw", "outage_state_total_mw"]
+    short_cols = [f"energy_shortage_{r}_mu" for r in REGIONS]
+    om = _monthly_mean(daily, outage_cols)
+    om.columns = ["month"] + [r.upper() for r in REGIONS] + ["central", "state"]
+    sm = _monthly_mean(daily, short_cols)
+    sm.columns = ["month"] + [r.upper() for r in REGIONS]
+
+    yr = d.assign(year=d["date"].dt.year)
+    yr = yr[yr["year"] >= 2019].groupby("year").agg(
+        inBand=("inBand", "mean"), fvi=("fvi", "mean"), outage=("outage", "mean"),
+        shortageMu=("shortageMu", "sum"), days=("date", "nunique"),
+    ).reset_index()
+
+    return {
+        "asOf": d_out["date"].iloc[-1],
+        "daily": columnar(d_out, {"fvi": 3, "below": 2, "inBand": 2, "above": 2, "outage": 0,
+                                  "shortageMu": 2, "peakShortageMw": 0}),
+        "outageMonthly": columnar(om, {c: 0 for c in om.columns if c != "month"}),
+        "shortageMonthly": columnar(sm, {c: 3 for c in sm.columns if c != "month"}),
+        "yearly": [
+            {"year": int(r.year), "inBand": _fnum(r.inBand), "fvi": _fnum(r.fvi, 3),
+             "outage": _fnum(r.outage, 0), "shortageMu": _fnum(r.shortageMu, 1), "days": int(r.days)}
+            for r in yr.itertuples()
+        ],
+    }
+
+
+# --- Models -----------------------------------------------------------------
+
+def compact_risk(risk):
+    """Group the 15-min risk log by day: {date: {t, v, r, av, ar}} arrays.
+    The frontend expands it back into the original row shape."""
+    out = {}
+    for date, g in risk.sort_values(["date", "time"]).groupby("date"):
+        out[str(date)] = {
+            "t": g["time"].tolist(),
+            "v": [None if pd.isna(x) else round(float(x), 4) for x in g["violation_prob"]],
+            "r": [None if pd.isna(x) else round(float(x), 4) for x in g["ramp_prob"]],
+            "av": [None if pd.isna(x) else int(x) for x in g["actual_violation"]],
+            "ar": [None if pd.isna(x) else int(x) for x in g["actual_ramp"]],
+        }
+    return out
+
+
+def build_calibration(risk, thresholds):
+    """How the live (logged, out-of-sample) risk predictions compare with
+    what actually happened: decile reliability bins, plus precision/recall
+    at each classifier's VAL-selected threshold."""
+    from sklearn.metrics import average_precision_score, brier_score_loss, roc_auc_score
+
+    out = {}
+    for name, prob_col, act_col in (("violation", "violation_prob", "actual_violation"),
+                                    ("ramp", "ramp_prob", "actual_ramp")):
+        d = risk.dropna(subset=[prob_col, act_col])
+        if d.empty or d[act_col].nunique() < 2:
+            out[name] = None
+            continue
+        y, p = d[act_col].astype(int), d[prob_col]
+        bins = pd.qcut(p.rank(method="first"), 10, labels=False)
+        rel = d.assign(bin=bins).groupby("bin").agg(
+            predicted=(prob_col, "mean"), observed=(act_col, "mean"), n=(act_col, "size"),
+        ).reset_index(drop=True)
+        thr = thresholds.get(name)
+        flagged = p >= thr
+        n_flagged = int(flagged.sum())
+        n_pos = int((y == 1).sum())
+        tp = int((flagged & (y == 1)).sum())
+        out[name] = {
+            "n": int(len(d)),
+            "positives": n_pos,
+            "baseRate": _fnum(y.mean(), 4),
+            "auc": _fnum(roc_auc_score(y, p), 3),
+            "avgPrecision": _fnum(average_precision_score(y, p), 3),
+            "brier": _fnum(brier_score_loss(y, p), 4),
+            "threshold": _fnum(thr, 4),
+            "flagged": n_flagged,
+            "precision": _fnum(tp / n_flagged, 3) if n_flagged else None,
+            "recall": _fnum(tp / n_pos, 3) if n_pos else None,
+            "bins": [{"predicted": _fnum(r.predicted, 4), "observed": _fnum(r.observed, 4), "n": int(r.n)}
+                     for r in rel.itertuples()],
+        }
+    return out
+
+
+def build_models(era3_df, study2_f):
+    forecast = pd.read_csv(DATASET_DIR / "predictions" / "study1_forecast.csv")
+    risk = pd.read_csv(DATASET_DIR / "predictions" / "study2_risk.csv")
+    fi = build_feature_importance(study2_f)
+    return {
+        "asOf": str(risk["date"].max()) if len(risk) else None,
+        "forecast": clean_records(forecast),
+        "risk": compact_risk(risk),
+        "calibration": build_calibration(risk, fi["thresholds"]),
+        "featureImportance": fi,
+        "hourDowHeatmap": build_hour_dow_heatmap(era3_df),
+        "monthSeasonality": build_month_seasonality(era3_df),
+        "solarHourRates": build_solar_hour_rates(era3_df),
+        "resShareFindings": build_res_share_findings(era3_df),
+    }
+
+
+def _write(name, payload):
+    path = OUT_DIR / f"{name}.json"
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, separators=(",", ":"), allow_nan=False)
+    print(f"wrote {path.relative_to(REPO_ROOT)} ({path.stat().st_size / 1024:.1f} KB)")
+
+
 if __name__ == "__main__":
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     study2_f = _load_module("study2_features", STUDY2_DIR / "features.py")
     era3_df = _load_study2_base_df(study2_f)
+    daily = _load_daily()
 
-    forecast, risk = build_predictions()
-    payload = {
-        "dailySlim": build_daily_slim(),
-        "era1Monthly": build_era1_monthly(),
-        "era2CorridorCorr": build_era2_corridor_corr(),
-        "forecast": forecast,
-        "risk": risk,
-        "hourDowHeatmap": build_hour_dow_heatmap(era3_df),
-        "monthSeasonality": build_month_seasonality(era3_df),
-        "solarHourRates": build_solar_hour_rates(era3_df),
-        "resShareFindings": build_res_share_findings(era3_df),
-        "featureImportance": build_feature_importance(study2_f),
-        "study3Latest": build_study3_latest(),
-    }
-    with open(OUT_FILE, "w", encoding="utf-8") as fh:
-        json.dump(payload, fh)
-    size_kb = OUT_FILE.stat().st_size / 1024
-    print(f"wrote {OUT_FILE} ({size_kb:.1f} KB)")
-    for key, val in payload.items():
-        n = len(val) if isinstance(val, list) else "object"
-        print(f"  {key}: {n}")
+    _write("overview", build_overview(daily))
+    _write("states", build_states())
+    _write("flows", build_flows(daily))
+    _write("renewables", build_renewables(daily, era3_df))
+    _write("reliability", build_reliability(daily))
+    _write("models", build_models(era3_df, study2_f))
+
+    if LEGACY_FILE.exists():
+        LEGACY_FILE.unlink()
+        print(f"removed legacy {LEGACY_FILE.relative_to(REPO_ROOT)}")

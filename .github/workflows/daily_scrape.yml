@@ -141,8 +141,10 @@ jobs:
       # Precomputes the slim JSON the Phase 5 dashboard (dashboard/) fetches --
       # study1_hourly.csv (36MB) and study2_scada.csv (60MB) are far too large
       # to ship to the browser, so this aggregates what each panel actually
-      # needs into dashboard/public/data/dashboard.json. See
-      # Pipeline/build_dashboard_data.py's docstring for the full breakdown.
+      # needs into one small JSON per dashboard tab under
+      # dashboard/public/data/ (overview, states, flows, renewables,
+      # reliability, models). See Pipeline/build_dashboard_data.py's
+      # docstring for the full breakdown.
       - name: Build dashboard data
         if: steps.outcome.outputs.changed == 'true'
         run: python Pipeline/build_dashboard_data.py
@@ -159,7 +161,7 @@ jobs:
           git add Dataset/study1_daily.csv Dataset/study2_scada.csv Dataset/study3_states.csv \
                   Dataset/predictions/study1_forecast.csv Dataset/predictions/study2_risk.csv \
                   Dataset/Raw/File2_Raw/ Dataset/Raw/File3_Raw/ \
-                  dashboard/public/data/dashboard.json
+                  dashboard/public/data/
           git commit -m "chore: daily PSP update $(date -u +%Y-%m-%d)"
           # A raw-file push may have landed while this ran; replay on top of it.
           git pull --rebase

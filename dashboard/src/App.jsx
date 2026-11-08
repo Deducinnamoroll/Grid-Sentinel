@@ -1,74 +1,103 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import Hero from './components/Hero'
-import LiveStatus from './components/LiveStatus'
-import StatePanel from './components/StatePanel'
-import ForecastPanel from './components/ForecastPanel'
-import RiskPanel from './components/RiskPanel'
-import HistoricalExplorer from './components/HistoricalExplorer'
-import ResearchFindings from './components/ResearchFindings'
-import AnomalyLog from './components/AnomalyLog'
+import { useTabData, prefetch } from './lib/data'
 
-const EMPTY_DATA = {
-  dailySlim: [],
-  era1Monthly: [],
-  era2CorridorCorr: [],
-  forecast: [],
-  risk: [],
-  hourDowHeatmap: null,
-  monthSeasonality: [],
-  solarHourRates: null,
-  resShareFindings: null,
-  featureImportance: null,
-  study3Latest: null,
+// Each tab is its own JS chunk and its own JSON file (public/data/<id>.json),
+// so opening the site only downloads what the Overview needs.
+const TABS = [
+  { id: 'overview', label: 'Overview', Component: lazy(() => import('./tabs/OverviewTab')) },
+  { id: 'states', label: 'States', Component: lazy(() => import('./tabs/StatesTab')) },
+  { id: 'flows', label: 'Power flows', Component: lazy(() => import('./tabs/FlowsTab')) },
+  { id: 'renewables', label: 'Renewables', Component: lazy(() => import('./tabs/RenewablesTab')) },
+  { id: 'reliability', label: 'Reliability', Component: lazy(() => import('./tabs/ReliabilityTab')) },
+  { id: 'models', label: 'Models', Component: lazy(() => import('./tabs/ModelsTab')) },
+]
+
+function tabFromHash() {
+  const id = window.location.hash.replace('#', '')
+  return TABS.some((t) => t.id === id) ? id : 'overview'
+}
+
+function TabBar({ active, onSelect }) {
+  return (
+    <nav
+      aria-label="Dashboard sections"
+      className="sticky top-3 z-20 -mx-1 overflow-x-auto rounded-2xl border border-white/8 bg-[#0b0e14]/85 p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md"
+    >
+      <div role="tablist" className="flex min-w-max gap-1">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            type="button"
+            aria-selected={active === t.id}
+            onClick={() => onSelect(t.id)}
+            onMouseEnter={() => prefetch(t.id)}
+            onFocus={() => prefetch(t.id)}
+            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+              active === t.id
+                ? 'bg-sky-400/15 text-sky-100 shadow-[inset_0_0_0_1px_rgba(56,189,248,0.35)]'
+                : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+    </nav>
+  )
+}
+
+function Loading() {
+  return (
+    <div className="rounded-3xl border border-white/6 bg-[#0d1016]/60 px-5 py-16 text-center text-sm text-slate-500">Loading…</div>
+  )
 }
 
 function App() {
-  const [data, setData] = useState(EMPTY_DATA)
-  const [status, setStatus] = useState('loading')
-  const [error, setError] = useState(null)
+  const [active, setActive] = useState(tabFromHash)
+  const { data, error, status } = useTabData(active)
+  const [asOf, setAsOf] = useState(null)
 
   useEffect(() => {
-    fetch('/data/dashboard.json')
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.json()
-      })
-      .then((json) => {
-        setData(json)
-        setStatus('ready')
-      })
-      .catch((err) => {
-        setError(err.message)
-        setStatus('error')
-      })
+    const onHash = () => setActive(tabFromHash())
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
-  const asOfDate = data.dailySlim.length ? data.dailySlim[data.dailySlim.length - 1].date : null
+  useEffect(() => {
+    if (data?.asOf) setAsOf((prev) => (prev && prev > data.asOf ? prev : data.asOf))
+  }, [data])
+
+  const select = (id) => {
+    if (id === active) return
+    // pushState rather than location.hash: no jump-to-anchor scroll.
+    window.history.pushState(null, '', `#${id}`)
+    setActive(id)
+  }
+
+  const { Component } = TABS.find((t) => t.id === active)
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.16),_transparent_60%),linear-gradient(180deg,_#0a0d13_0%,_#06070a_78%,_#030304_100%)] px-5 py-10 text-slate-200 sm:px-8 lg:px-14">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
-        <Hero asOfDate={status === 'ready' ? asOfDate : null} />
+        <Hero asOfDate={asOf} />
+        <TabBar active={active} onSelect={select} />
 
         {status === 'error' && (
           <div className="rounded-2xl border border-amber-400/30 bg-amber-400/[0.06] px-5 py-3 text-center text-sm text-amber-300">
-            Couldn't load dashboard data ({error}). Run <code className="rounded bg-white/10 px-1.5 py-0.5">python Pipeline/build_dashboard_data.py</code> to generate it.
+            Couldn't load this tab's data ({error}). Run{' '}
+            <code className="rounded bg-white/10 px-1.5 py-0.5">python Pipeline/build_dashboard_data.py</code> to generate it.
           </div>
         )}
-
-        <LiveStatus dailySlim={data.dailySlim} />
-        <StatePanel study3Latest={data.study3Latest} />
-        <ForecastPanel forecast={data.forecast} />
-        <RiskPanel risk={data.risk} />
-        <HistoricalExplorer dailySlim={data.dailySlim} era1Monthly={data.era1Monthly} era2CorridorCorr={data.era2CorridorCorr} />
-        <ResearchFindings
-          hourDowHeatmap={data.hourDowHeatmap}
-          monthSeasonality={data.monthSeasonality}
-          solarHourRates={data.solarHourRates}
-          resShareFindings={data.resShareFindings}
-          featureImportance={data.featureImportance}
-        />
-        <AnomalyLog forecast={data.forecast} risk={data.risk} thresholds={data.featureImportance?.thresholds} />
+        {status === 'loading' && <Loading />}
+        {status === 'ready' && (
+          <Suspense fallback={<Loading />}>
+            <div role="tabpanel" className="flex flex-col gap-6">
+              <Component data={data} />
+            </div>
+          </Suspense>
+        )}
 
         <footer className="mt-2 pb-6 text-center text-xs text-slate-600">
           Data and models:{' '}

@@ -74,3 +74,73 @@ export function ChartTooltip({ active, payload, label, formatter }) {
     </div>
   )
 }
+
+// Inner chart container used across tabs: same bordered box the original
+// panels draw inline, with an optional uppercase caption and right-side note.
+export function ChartBox({ title, note, children, className = '' }) {
+  return (
+    <div className={`rounded-2xl border border-white/8 bg-black/20 p-4 ${className}`}>
+      {(title || note) && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs font-medium uppercase tracking-wider text-slate-500">
+          <span>{title}</span>
+          {note && <span className="normal-case tracking-normal text-slate-600">{note}</span>}
+        </div>
+      )}
+      {children}
+    </div>
+  )
+}
+
+const PILL_TONES = {
+  sky: 'border-sky-400/30 bg-sky-400/10 text-sky-200',
+  amber: 'border-amber-400/30 bg-amber-400/10 text-amber-200',
+  emerald: 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200',
+  rose: 'border-rose-400/30 bg-rose-400/10 text-rose-200',
+  violet: 'border-violet-400/30 bg-violet-400/10 text-violet-200',
+}
+
+// Small segmented control, same look as the Historical Explorer's sub-tabs.
+export function Pills({ options, value, onChange, tone = 'amber' }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          onClick={() => onChange(o.id)}
+          className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+            value === o.id
+              ? PILL_TONES[tone]
+              : 'border-white/8 bg-white/[0.02] text-slate-400 hover:border-white/20 hover:text-slate-200'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+export function Select({ id, label, value, onChange, options }) {
+  return (
+    <div className="flex items-center gap-2">
+      {label && (
+        <label htmlFor={id} className="text-xs font-medium uppercase tracking-wider text-slate-500">
+          {label}
+        </label>
+      )}
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-200 outline-none transition focus:border-sky-400/40"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value} className="bg-[#0d1016]">
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
