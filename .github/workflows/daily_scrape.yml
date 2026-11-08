@@ -23,6 +23,10 @@ on:
         description: 'Backfill missing Study 1/2 predictions from this date (YYYY-MM-DD). Blank = latest day only.'
         required: false
         default: ''
+      publish_kaggle:
+        description: 'Push the committed CSVs to Kaggle even if nothing changed this run (yes/no). Use to retry a failed Kaggle push.'
+        required: false
+        default: 'no'
 
 permissions:
   contents: write   # needed to commit updated CSVs back to repo
@@ -168,8 +172,12 @@ jobs:
       # Dataset/Raw/ contains thousands of raw XLS/PDF files that must not
       # be uploaded to Kaggle. Copy only the CSVs and metadata to a temp
       # directory and push from there.
+      # Retries the version call: on 2026-11-08 every file uploaded but the final
+      # CreateDatasetVersion call returned 400 (cause not shown in the log), and the
+      # step only runs on changed data, so a plain re-run could not retry it. The
+      # publish_kaggle dispatch input forces this step with the data as committed.
       - name: Push to Kaggle
-        if: steps.outcome.outputs.changed == 'true'
+        if: steps.outcome.outputs.changed == 'true' || github.event.inputs.publish_kaggle == 'yes'
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
@@ -183,9 +191,17 @@ jobs:
              Dataset/README.md \
              Dataset/dataset-metadata.json \
              /tmp/kaggle_push/
-          kaggle datasets version \
-            -p /tmp/kaggle_push/ \
-            -m "Daily PSP update $(date -u +%Y-%m-%d)"
+          for attempt in 1 2 3; do
+            if kaggle datasets version \
+                 -p /tmp/kaggle_push/ \
+                 -m "Daily PSP update $(date -u +%Y-%m-%d)"; then
+              exit 0
+            fi
+            echo "Kaggle version attempt $attempt of 3 failed."
+            [ "$attempt" -lt 3 ] && sleep 60
+          done
+          echo "::error title=Kaggle push failed::All 3 attempts to create a new dataset version failed."
+          exit 1
 
       # ── 8. Summary ─────────────────────────────────────────────────────────
       - name: Summary
