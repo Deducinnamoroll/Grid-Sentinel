@@ -70,3 +70,17 @@ Verification (2026-07-10): `Pipeline/validate.py --only study3` passes all 6 che
 ## Fix 2026-11-10: max OD printed as "OD/ UD" (from Feb 2026)
 
 From mid-February 2026 most reports print the max OD column as a pair, "max OD/ max UD (MW)", for example "1137/ -1136", instead of a single number. `_to_float` returned None for it, so `max_od_mw` was empty for almost every row from 2026-02-13 (2026 coverage had fallen to 14%). `_to_float` now takes the number before the slash, so `max_od_mw` keeps its meaning (maximum over-drawal). The 10,508 empty values from December 2025 on were re-parsed and filled; the 2,886 values already present all matched the fixed parser.
+
+## Fix 2026-11-10: bulk consumers moved to sheet MOP_E1 (from 2026-09-29)
+
+From the 2026-09-29 report NLDC moved the individual ISTS bulk consumers (Railways_NR ISTS, Hindustan Zinc Ltd. Daripa, AMNSIL, BALCO, RIL Jamnagar, Welspun, Railways_ER ISTS) out of section C into a new sheet, `MOP_E1` (section J, same eight-column layout). Section C kept one `Bulk Consumer_<region> ISTS` row per region, and these are the **sums** of that region's entities (energy adds up exactly, e.g. WR 9.7 + 20.9 + 7.1 + 0.7 = 38.4 MU). The parser read only `MOP_E`, so from 2026-09-29 the individual entities were missing and only the sums were stored. The note above about the 2026-09-30 rows is corrected by this: they are regional totals, not new entities.
+
+On the same day NLDC left three blank rows inside WR where those entities had been. `_xls_states` treated the first blank row as the end of the table, so 2026-09-29 stopped after Goa (16 rows instead of about 40).
+
+Changes:
+- `parse_xls` also reads `MOP_E1` when present, keeps its entities and drops the `Bulk Consumer_*` sum rows, so nothing is counted twice and the series matches how bulk consumers were stored before.
+- `_xls_states` skips up to three blank rows and stops at the next section heading ("D. ..."); rows with no numbers are skipped.
+- From 2026-06-01 to 09-28 section C had one `Bulk Consumer_NR ISTS` row that was a single plant, Hindustan Zinc (about 110 MW, 1.3 MU a day, matching its MOP_E1 row afterwards). It is now stored as `Hindustan Zinc`, the same name the MOP_E1 rows get (`STATE_NAME_ALIASES`), so the plant is one continuous series. This is a judgment call based on the matching magnitudes; the raw label is in the reports.
+- `Hindustan Zinc` (NR) and `Welspun` (WR, new) are in `STATE_TO_REGION`; `Pipeline/build_dashboard_data.py` treats both as non-states.
+
+Repair of `study3_states.csv`: 120 rows renamed, 201 regional-sum rows dropped, 306 rows added (41 days x 7 entities, plus the 19 states lost on 2026-09-29). Every 2026 row on a date with a parsed report now matches the fixed parser exactly. Found by the replay of `Scrapings/report_guard.py`, which flags this change on its first day.

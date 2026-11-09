@@ -88,6 +88,13 @@ STATE_NAME_ALIASES = {
     "Railways_NR": "Railways_NR ISTS",
     "Railways_ER": "Railways_ER ISTS",
     "RIL Jamnagar": "RIL JAMNAGAR",
+
+    # From 2026-09-29 the bulk consumers sit in their own sheet, MOP_E1
+    # (section J). Its name for the NR zinc smelter; before that date the same
+    # plant was the single "Bulk Consumer_NR ISTS" row of section C (renamed in
+    # parse_xls, see there). One canonical name across both.
+    "Hindustan Zinc Ltd. Daripa": "Hindustan Zinc",
+    "Hindustan Zinc Ltd": "Hindustan Zinc",
 }
 
 # A single row where the state name itself extracted as the literal string
@@ -117,11 +124,12 @@ STATE_TO_REGION = {
     "Punjab": "NR", "Haryana": "NR", "Rajasthan": "NR", "Delhi": "NR",
     "UP": "NR", "Uttarakhand": "NR", "HP": "NR",
     "J&K(UT) & Ladakh(UT)": "NR", "Chandigarh": "NR",
-    "Railways_NR ISTS": "NR", "Bulk Consumer_NR ISTS": "NR",
+    "Railways_NR ISTS": "NR", "Bulk Consumer_NR ISTS": "NR", "Hindustan Zinc": "NR",
     # WR
     "Chhattisgarh": "WR", "Gujarat": "WR", "MP": "WR", "Maharashtra": "WR",
     "Goa": "WR", "DD": "WR", "DNH": "WR", "DNHDDPDCL": "WR",
     "Essar steel": "WR", "AMNSIL": "WR", "BALCO": "WR", "RIL JAMNAGAR": "WR",
+    "Welspun": "WR",  # first seen in MOP_E1, 2026-09-29
     # SR
     "Andhra Pradesh": "SR", "Telangana": "SR", "Karnataka": "SR",
     "Kerala": "SR", "Tamil Nadu": "SR", "Puducherry": "SR",
@@ -291,12 +299,16 @@ def _xls_find_date(df):
     return None
 
 
-def _xls_states(df):
-    """Extract per-state rows from the section C table in the MOP_E sheet."""
+_SECTION_HEAD = re.compile(r"^[A-Z]\.\s")
+
+
+def _xls_states(df, title="power supply position in states"):
+    """Extract per-entity rows from a section C-style table: section C of MOP_E
+    by default, or (title "...ists bulk consumer entities") section J of MOP_E1."""
     section_idx = None
     for i, row in df.iterrows():
         lbl = str(row.iloc[0]).strip().lower() if not pd.isna(row.iloc[0]) else ""
-        if "power supply position in states" in lbl:
+        if title in lbl:
             section_idx = i
             break
     if section_idx is None:
@@ -312,15 +324,27 @@ def _xls_states(df):
         return []
 
     rows = []
+    blanks = 0
     for i in range(col_row + 1, len(df)):
         state_cell = df.iloc[i, 1] if df.shape[1] > 1 else None
         state = str(state_cell).strip() if not pd.isna(state_cell) else ""
-        if not state:
-            break  # blank row marks the end of the table
         reg_cell = df.iloc[i, 0]
         region = str(reg_cell).strip() if not pd.isna(reg_cell) else ""
+        if _SECTION_HEAD.match(region):
+            break  # the next section's heading
+        if not state:
+            # Blank rows used to mark the end of the table, but on 2026-09-29
+            # NLDC left three blank rows inside WR where bulk consumers had
+            # been, which cut the day off after Goa. Skip short gaps instead.
+            blanks += 1
+            if blanks >= 4:
+                break
+            continue
+        blanks = 0
         region = region if region in REGIONS else None
         vals = [_to_float(df.iloc[i, c]) if c < df.shape[1] else None for c in range(2, 9)]
+        if all(v is None for v in vals):
+            continue  # a stray label, not a data row
         rows.append({"region": region, "state": state, **dict(zip(COLS, vals))})
     return rows
 
@@ -336,6 +360,23 @@ def parse_xls(filepath):
         print(f"  WARNING: could not extract date from {Path(filepath).name}")
         return []
     states = _xls_states(df)
+    if "MOP_E1" in xl.sheet_names:
+        # From 2026-09-29: individual bulk consumers are in MOP_E1 (section J)
+        # and section C carries only "Bulk Consumer_<region> ISTS" rows that are
+        # their regional sums (energy adds up exactly). Keep the individual
+        # entities, as before that date, and drop the sums so no total counts
+        # them twice.
+        bulk = _xls_states(pd.read_excel(filepath, sheet_name="MOP_E1", engine="xlrd", header=None),
+                           title="power supply position of ists bulk consumer entities")
+        if bulk:
+            states = [s for s in states if not s["state"].startswith("Bulk Consumer_")] + bulk
+    else:
+        # Before MOP_E1, section C's one "Bulk Consumer_NR ISTS" row (from
+        # 2026-06-01) was a single plant: Hindustan Zinc (about 110 MW and
+        # 1.3 MU a day, matching its MOP_E1 row from 2026-09-29).
+        for s in states:
+            if s["state"] == "Bulk Consumer_NR ISTS":
+                s["state"] = "Hindustan Zinc"
     for s in states:
         s["date"] = date_
     return states

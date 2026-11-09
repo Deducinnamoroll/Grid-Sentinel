@@ -391,7 +391,7 @@ STATE_RENAME = {
 # Rows that are grid entities, not states/UTs: no polygon on the map, listed
 # separately in the UI.
 NON_STATE_PREFIXES = ("Bulk Consumer_", "Railways_")
-NON_STATE_NAMES = {"DVC", "AMNSIL", "BALCO", "Essar steel", "RIL JAMNAGAR"}
+NON_STATE_NAMES = {"DVC", "AMNSIL", "BALCO", "Essar steel", "RIL JAMNAGAR", "Hindustan Zinc", "Welspun"}
 
 
 def _is_state(name):
