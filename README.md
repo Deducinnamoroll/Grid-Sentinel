@@ -58,6 +58,7 @@ Grid-Sentinel is an independent student project. It is **not affiliated with NLD
 
 ### Models
 - Next-day demand forecast against actuals, daily error and a trailing 7-day MAPE
+- Holiday correction for the forecast: scales it by the dip the same holiday showed in past years, which cut festival-day error from 12.2% to 2.9% in a 2022 to 2026 backtest
 - 96-slot risk timelines for frequency violations and ramp shocks, with a calibration check that shows whether the stated risk is honest
 
 ### Pipeline
@@ -202,6 +203,7 @@ There is no unit-test suite. Correctness is checked on the data itself:
 - **New data depends on one PC being on.** The scheduler catches up the last 7 days when it next runs, but a longer outage needs a manual run.
 - **Not real time.** NLDC publishes each day's report the following afternoon, so the dashboard is at least a day behind.
 - **The frequency-violation classifier is modest** (PR-AUC 0.154) and under-predicts: in Sep and Oct 2026, violations occurred in about 9% of slots against an average predicted risk of about 4%.
+- **Holidays come from the central gazetted list.** Regional festivals such as Ganesh Chaturthi, Pongal or Onam get no forecast correction, and the day after a holiday is still the hardest to forecast.
 - **Source gaps.** `study1_daily` and `study1_hourly` have 69 root-caused missing dates (mostly duplicate NLDC republishes in 2020, plus a few archive gaps). `study2_scada` has 17 dates with no rows (PDF-only days) and 3 corrupted days dropped before training.
 - **Coverage varies by era.** Inter-regional line and cross-border columns exist only from about 2023, and the hourly load source ends in April 2024.
 - **Format changes break parsing until mapped.** When NLDC added new entities on 30 Sep 2026, validation stopped the pipeline until they were mapped. The workflow now turns red when that happens instead of staying green.

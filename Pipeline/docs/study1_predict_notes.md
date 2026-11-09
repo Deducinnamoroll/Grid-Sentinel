@@ -81,3 +81,27 @@ The target comes from `make_ahead_target()` in `features.py`, which matches targ
 **Date format fix:** rows appended to an empty log were written as `YYYY-MM-DD 00:00:00`; the script now always writes bare dates.
 
 **Not changed:** Study 2's `study1_residual_mw` feature is built separately in `ML/Study2/features.py` from the one-day target, not from this log, so Study 2 is unaffected.
+
+## Holiday correction (added 2026-11-09)
+
+**Why:** the live forecast for Diwali 2026 (2026-11-08) was 219,919 MW against an actual 195,673 MW, a 12.4% miss. Diwali cuts national peak demand by 12 to 16% every year, and the model's calendar features (day of week, month, day of year) cannot place a festival that follows the lunar calendar. The three worst misses in the live log were all holidays (Diwali, Independence Day, and 14 Sep).
+
+**What:** `HolidayCorrection` in `features.py`. After the model forecasts, the result is multiplied by `(1 + E[target day]) / (1 + E[made day])`, where E is the mean dip that day showed in past years. Each past occurrence is measured as demand against the mean of the same weekday one and two weeks either side. Days are keyed as -3 to +5 around Diwali (the dip lasts several days), else by gazetted holiday name from the `holidays` package (Holi or Dussehra win inside a combined name). 2020 is left out (lockdown); a key needs two past occurrences; only occurrences whose reference days were known on the made day count, so backfills see what the live run would have.
+
+Measured effects (all years to 2026-11-08): Diwali -12.1%, Diwali+1 -14.6%, +2 -12.0%, +3 -7.8%, Holi -10.9%, Dussehra -9.0%, Independence Day -5.0%, Republic Day -4.3%, most others 0 to 3%, Christmas +2.9%.
+
+**Backtest:** walk-forward, targets 2022-01-01 to 2026-11-08, 1,747 forecasts, retrained every 7 days with the live model's settings, training only on days whose outcome was known. MAPE:
+
+| Days | Model alone | Holiday features in the model | Correction (shipped) |
+|---|---:|---:|---:|
+| All | 2.48 | 2.47 | 2.37 |
+| No holiday on either end | 2.25 | 2.25 | 2.25 |
+| Holiday at either end | 4.25 | 4.08 | 3.25 |
+| Diwali/Holi/Dussehra target | 12.22 | 10.17 | 2.88 |
+| Diwali window target | 5.67 | 4.90 | 2.92 |
+
+Holiday features inside LightGBM (target-day and made-day holiday flags, major-festival flag, Diwali offset) were tried first and helped little: there are about four Diwalis in the training data and LightGBM will not split off fewer than 20 rows. A target-only correction (no made-day term) was also tried and lost on the deciding group (3.82% vs 3.25%), mainly two days after Diwali, when the model's anchor is the depressed Diwali day itself. The rule for choosing between the two was fixed before the comparison was run.
+
+Live check with the shipped code: forecast made 2026-11-06 for Diwali gives 195,989 MW (model alone 219,919), actual 195,673. Logged forecasts made before this change were left as published.
+
+**Limits:** regional festivals not on the central list (for example Ganesh Chaturthi, Pongal, Onam) get no correction, and the largest remaining misses are on days just after a holiday when the made day was the holiday.

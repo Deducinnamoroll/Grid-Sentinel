@@ -16,6 +16,10 @@ asset? commit directly?) by not needing a stored artifact at all. A daily
 retrain also means the model always reflects the latest data, with no risk of
 a stale cached model silently drifting out of date.
 
+Holiday correction (added 2026-11-09): the model's forecast is scaled by the
+dip the same holiday showed in past years, for both the target day and the
+made day. See HolidayCorrection in features.py for the method and backtest.
+
 Maintains a persistent forecast/residual log at
 Dataset/predictions/study1_forecast.csv:
   - Each run appends a new forecast row for the latest date currently in
@@ -54,7 +58,7 @@ import lightgbm as lgb
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from features import build_feature_table, make_ahead_target, TARGET  # noqa: E402
+from features import build_feature_table, make_ahead_target, HolidayCorrection, TARGET  # noqa: E402
 
 STUDY1_CSV = REPO_ROOT / "Dataset" / "study1_daily.csv"
 FORECAST_LOG = REPO_ROOT / "Dataset" / "predictions" / "study1_forecast.csv"
@@ -127,6 +131,14 @@ def train_and_predict(df: pd.DataFrame):
 
     today = pd.Timestamp(predict_row["date"].values[0])
     target = today + pd.Timedelta(days=HORIZON_DAYS)
+
+    # Holiday correction (added 2026-11-09): see HolidayCorrection in features.py.
+    corr = HolidayCorrection(df.set_index("date")[TARGET])
+    factor = corr.factor(today, target)
+    if factor != 1.0:
+        print(f"Holiday correction x{factor:.3f} (made day: {corr.key(today) or 'none'}, "
+              f"target: {corr.key(target) or 'none'}); model alone said {forecast:,.1f} MW")
+    forecast *= factor
     return forecast, today, target
 
 

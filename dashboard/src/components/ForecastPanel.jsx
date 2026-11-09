@@ -30,7 +30,7 @@ export default function ForecastPanel({ forecast }) {
   return (
     <SectionCard
       title="Study 1: Next-Day Demand Forecast"
-      subtitle="LightGBM baseline, retrained daily on all available history. NLDC publishes each day's report the following afternoon, so every forecast is made for two days after the latest report: it appears the day before the day it predicts."
+      subtitle="LightGBM baseline, retrained daily on all available history, then scaled on holidays by how much demand dipped on the same holiday in past years (Diwali about -12%). NLDC publishes each day's report the following afternoon, so every forecast is made for two days after the latest report: it appears the day before the day it predicts."
       accent="violet"
     >
       <StatGrid>

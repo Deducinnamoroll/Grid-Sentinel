@@ -69,7 +69,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install pandas openpyxl pdfplumber requests urllib3 xlrd six "kaggle>=1.8.0" \
-                      numpy scikit-learn lightgbm
+                      numpy scikit-learn lightgbm holidays
 
       # ── 4. Run scraper ─────────────────────────────────────────────────────
       # The script's exit code is captured instead of letting the step fail, because

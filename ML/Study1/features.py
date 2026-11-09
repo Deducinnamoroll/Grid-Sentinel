@@ -24,6 +24,88 @@ def add_calendar_features(df: pd.DataFrame, date_col: str = "date") -> pd.DataFr
     return df
 
 
+class HolidayCorrection:
+    """
+    Scales a forecast by how much demand dipped on the same holiday in past
+    years. Added 2026-11-09 after the live forecast missed Diwali 2026 by
+    12.4%: the model has no idea a festival is coming, and festivals that
+    follow the lunar calendar move by up to three weeks a year.
+
+    Why a correction and not model features: festivals are rare (one Diwali a
+    year), and LightGBM will not split off fewer than 20 rows, so holiday
+    features barely moved the trees. A walk-forward backtest over 2022 to
+    2026 (1,747 forecasts, retrained weekly) gave, as MAPE:
+        Diwali/Holi/Dussehra target days   12.2% -> 2.9%  (features: 10.2%)
+        Diwali window (-3 to +5 days)       5.7% -> 2.9%  (features:  4.9%)
+        all days                            2.48% -> 2.37%
+        days with no holiday on either end  2.25% -> 2.25% (untouched)
+    See Pipeline/docs/study1_predict_notes.md.
+
+    Keys: days -3 to +5 around Diwali (the dip lasts several days: about
+    -4%, -12%, -15%, -12%, -8% from the day before to three days after), then
+    the gazetted holiday name, with Holi or Dussehra winning inside a combined
+    name ("Dussehra; Mahatma Gandhi's Jayanti"). Dates come from the
+    `holidays` package (India's gazetted central list).
+
+    Effect of one past occurrence: demand / mean demand on the same weekday 1
+    and 2 weeks either side (non-holiday days only), minus 1. 2020 is left out
+    (lockdown). A key needs at least MIN_PAST occurrences, and only those whose
+    reference days were known on the made day count, so a backfilled forecast
+    sees what the live run would have seen.
+    """
+
+    DIWALI_WINDOW = (-3, 5)
+    EXCLUDE_YEARS = (2020,)
+    MIN_PAST = 2
+
+    def __init__(self, series: pd.Series):
+        """series: the target column indexed by date (all data up to the made day)."""
+        import holidays  # imported here so the notebooks don't need it
+
+        years = range(series.index.min().year - 1, series.index.max().year + 3)
+        self.hol = {pd.Timestamp(d): n for d, n in holidays.India(years=years).items()}
+        self.diwalis = sorted(d for d, n in self.hol.items() if "Diwali" in n)
+        rows = []
+        for t, v in series.dropna().items():
+            k = self.key(t)
+            if not k or t.year in self.EXCLUDE_YEARS:
+                continue
+            refs = [t + pd.Timedelta(days=j) for j in (-14, -7, 7, 14)]
+            refs = [x for x in refs if x in series.index and self.key(x) is None]
+            ref_vals = series.reindex(refs).dropna()
+            if len(ref_vals) >= 2:
+                rows.append((k, t, v / ref_vals.mean() - 1))
+        self.occ = pd.DataFrame(rows, columns=["key", "t", "eff"])
+
+    def key(self, t):
+        lo, hi = self.DIWALI_WINDOW
+        for d in self.diwalis:
+            k = (t - d).days
+            if lo <= k <= hi:
+                return f"diwali{k:+d}"
+        name = self.hol.get(t)
+        if not name:
+            return None
+        for f in ("Holi", "Dussehra"):
+            if f in name:
+                return f
+        return name.split("; ")[0].split(" (")[0]
+
+    def expected(self, t, made) -> float:
+        k = self.key(t)
+        if not k:
+            return 0.0
+        past = self.occ[(self.occ.key == k) & (self.occ.t + pd.Timedelta(days=14) <= made)]
+        return float(past.eff.mean()) if len(past) >= self.MIN_PAST else 0.0
+
+    def factor(self, made, target) -> float:
+        """Multiply the model's forecast by this. Divides out the made day's own
+        dip too: the model forecasts a change from the made day, so a holiday
+        anchor drags the forecast down (backtest: 3.25% vs 3.82% MAPE on days
+        with a holiday at either end, against target-only)."""
+        return (1 + self.expected(target, made)) / (1 + self.expected(made, made))
+
+
 def add_lag_features(df: pd.DataFrame, col: str = TARGET, lags=(1, 7, 365)) -> pd.DataFrame:
     df = df.copy()
     for lag in lags:
