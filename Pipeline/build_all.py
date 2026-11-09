@@ -5,7 +5,8 @@ Runs in order:
   1. Dataset/Raw/File1_Raw  -> tmp/f1_daily.csv                     (parse_psp_pdf_xls_file1.py)
   2. Dataset/Raw/File2_Raw  -> Dataset/study1_daily.csv             (parse_psp_pdf_xls_file2.py)
   3. Dataset/Raw/File2_Raw  -> Dataset/study3_states.csv            (parse_psp_states.py)
-  4. Dataset/Raw/File3_Raw  -> Dataset/study2_scada.csv             (parse_psp_xls_pdf_file3.py long)
+  4. Dataset/Raw/File3_Raw  -> Dataset/study2_scada.csv             (parse_psp_xls_pdf_file3.py long,
+                                                                     then study2_io.py --slim-in-place)
   5. tmp/f1_daily.csv + Reference/hourlyLoadDataIndia.xlsx
                -> Dataset/study1_hourly.csv             (in-process pandas join)
 
@@ -236,6 +237,18 @@ def main():
         )
         if not ok:
             errors.append("file3 parse failed")
+        else:
+            # The parser writes the wide frame (study1_daily's columns broadcast onto
+            # every slot). Drop them so the committed file stays far below GitHub's
+            # 100 MB limit; every reader re-joins them (Pipeline/study2_io.py). This
+            # refuses, and the build fails, if any dropped value disagrees with
+            # study1_daily.csv, so rebuild study1_daily first if File2 changed too.
+            ok = _run(
+                [sys.executable, str(REPO_ROOT / "Pipeline" / "study2_io.py"), "--slim-in-place"],
+                "study2_scada slim"
+            )
+            if not ok:
+                errors.append("study2_scada slim failed (daily columns disagree with study1_daily)")
 
     # -- Step 5: hourly join -----------------------------------------------------
     if not args.skip_hourly:

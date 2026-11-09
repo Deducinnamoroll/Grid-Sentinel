@@ -153,7 +153,7 @@ jobs:
 
       # ── 5c. Rebuild dashboard data ───────────────────────────────────────
       # Precomputes the slim JSON the Phase 5 dashboard (dashboard/) fetches --
-      # study1_hourly.csv (36MB) and study2_scada.csv (60MB) are far too large
+      # study1_hourly.csv (36MB) and study2_scada.csv (70MB joined) are far too large
       # to ship to the browser, so this aggregates what each panel actually
       # needs into one small JSON per dashboard tab under
       # dashboard/public/data/ (overview, states, flows, renewables,
@@ -215,8 +215,11 @@ jobs:
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
         run: |
           mkdir -p /tmp/kaggle_push
+          # study2_scada.csv is committed slim (no study1_daily columns, to stay far
+          # below GitHub's 100 MB file limit). Kaggle gets the full joined file, so
+          # its schema is unchanged. See Pipeline/docs/study2_io_notes.md.
+          python Pipeline/study2_io.py --write-wide /tmp/kaggle_push/study2_scada.csv
           cp Dataset/study1_daily.csv \
-             Dataset/study2_scada.csv \
              Dataset/study1_hourly.csv \
              Dataset/study3_states.csv \
              Dataset/data_dictionary.xlsx \

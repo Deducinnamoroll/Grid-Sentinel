@@ -62,9 +62,13 @@ The 7 IR corridors checked are: ER-NR, ER-WR, ER-SR, ER-NER, NER-NR, WR-NR, WR-S
 
 ### study2_scada
 
+The committed file is slim (no `study1_daily` columns, see `study2_io_notes.md`). The first two checks look at the committed file. All the others run on the joined frame from `study2_io.widen()`, the same 164 columns every consumer sees, so their results did not change when the file was slimmed on 2026-11-10.
+
 | Check | Level if triggered | Threshold |
 |-------|--------------------|-----------|
-| Column count | FAIL | Must equal 164 |
+| Committed file is slim | FAIL | No column other than `date` may also be in `study1_daily.csv` (fix: `python Pipeline/study2_io.py --slim-in-place`) |
+| Every SCADA date has a `study1_daily` row | FAIL | Otherwise that day's daily columns would join as empty |
+| Column count | FAIL | Joined frame must have 164 |
 | Row count | FAIL | Must be >= 55,068 |
 | Duplicate (date, hhmm) pairs | FAIL | Zero allowed |
 | Data freshness | WARN | Latest date must be within 5 days of today |

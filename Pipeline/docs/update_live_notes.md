@@ -38,10 +38,18 @@ Tries three methods in order, each covering a different NLDC CDN era:
 | Function | Appends to | Source parser |
 |----------|-----------|---------------|
 | `append_study1()` | `study1_daily.csv` (1 row) | `parse_psp_pdf_xls_file2.parse_file()` |
-| `append_study2()` | `study2_scada.csv` (up to 96 rows) | `parse_psp_xls_pdf_file3.build_timeseries_long()` |
+| `append_study2()` | `study2_scada.csv` (up to 96 rows, slim) | `parse_psp_xls_pdf_file3.build_timeseries_long()` |
 | `append_study3()` | `study3_states.csv` (~37 rows) | `parse_psp_states.parse_file()`, added 2026-07-10 |
 
 All three re-sort after appending (`study1_daily` by date, `study2_scada` by date and time, `study3_states` by date, region and state), so a scan or backfill that adds an older day after newer ones still leaves the file in order. `append_study1()` gained its sort on 2026-11-09, after the October 2026 backfill left 39 rows out of place; the committed file was re-sorted line by line at the same time, with every row byte-identical.
+
+### `append_study2()` writes the slim file (since 2026-11-10)
+
+The parser still returns the wide frame, with the day's `study1_daily` values on every slot row. `append_study2()` drops those columns with `study2_io.slim()` before appending, and every reader re-joins them (see `study2_io_notes.md` for why). Because of that:
+
+- **The day must already be in `study1_daily.csv`.** `append_study1()` runs first on the same raw file, so normally it is. If it is not (`append_study1()` failed or found nothing), `append_study2()` skips the day and prints why. The next `--scan` picks it up again, because `_dates_in_all_csvs()` only counts a date as done when all three CSVs have it.
+- **The two parsers are compared.** The broadcast values from `parse_psp_xls_pdf_file3` are checked against the `study1_daily` row (from `parse_psp_pdf_xls_file2`). They agreed on all 718 days when this was introduced. Any difference prints a WARNING with the column names and does not stop the append. Readers get `study1_daily`'s value.
+- The existing file is read with `float_precision="round_trip"`, so rewriting it does not change the last digit of untouched cells. Before 2026-11-10 each daily rewrite changed a few dozen cells by one unit in the last place.
 
 Each is independent: a failure in one (caught and logged, not raised) doesn't block the other two in scan mode. Each checks whether that date is already present before appending — running the script twice on the same day is a safe no-op, not a duplicate.
 

@@ -69,7 +69,7 @@ every visit; now a first visit loads only the Overview file. The Models
 tab's 15-minute risk log is stored grouped by day as arrays, which is about
 a fifth of its old row-by-row size.
 
-`study1_hourly.csv` (36MB), `study2_scada.csv` (60MB) and
+`study1_hourly.csv` (36MB), `study2_scada.csv` (70MB joined) and
 `study3_states.csv` are never fetched by the browser.
 
 ### Notes on the data shown

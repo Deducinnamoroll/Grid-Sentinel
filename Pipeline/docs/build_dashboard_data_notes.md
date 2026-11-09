@@ -7,7 +7,7 @@
 
 ## In plain English
 
-The dashboard is a static website with no server behind it, so anything it shows has to be sitting in a file the browser can download. The real datasets are far too big for that (the 15-minute SCADA file alone is 60 MB). This script reads the big files once, works out exactly the numbers each chart needs (monthly averages, the latest day, a 365-day summary per state, and so on), and writes them out as six small files, one for each tab of the dashboard. A visitor only downloads the file for the tab they open.
+The dashboard is a static website with no server behind it, so anything it shows has to be sitting in a file the browser can download. The real datasets are far too big for that (the 15-minute SCADA table alone is 70 MB once its daily columns are joined back on). This script reads the big files once, works out exactly the numbers each chart needs (monthly averages, the latest day, a 365-day summary per state, and so on), and writes them out as six small files, one for each tab of the dashboard. A visitor only downloads the file for the tab they open.
 
 ---
 
@@ -29,7 +29,7 @@ It takes about 15 to 20 seconds locally. Most of that is reloading the SCADA fil
 |------|----------|
 | `Dataset/study1_daily.csv` | Overview, Power flows, Renewables, Reliability |
 | `Dataset/study1_hourly.csv` | Era 1 monthly ramp table (Overview) |
-| `Dataset/study2_scada.csv` | Duck curve (Renewables), EDA findings and feature importance (Models) |
+| `Dataset/study2_scada.csv`, joined with `study1_daily.csv` by `study2_io.load_study2()` (since 2026-11-10, see `study2_io_notes.md`) | Duck curve (Renewables), EDA findings and feature importance (Models) |
 | `Dataset/study3_states.csv` | States |
 | `Dataset/predictions/study1_forecast.csv` | Models: forecast and accuracy |
 | `Dataset/predictions/study2_risk.csv` | Models: risk timeline, calibration, anomaly log |

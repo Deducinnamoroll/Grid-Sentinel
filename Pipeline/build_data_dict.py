@@ -21,9 +21,13 @@ Usage:
 """
 
 import argparse
+import sys
 from pathlib import Path
 
 import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import study2_io  # noqa: E402
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 REPO_ROOT   = Path(__file__).resolve().parent.parent
@@ -398,7 +402,9 @@ def write_xlsx(output: Path) -> None:
 
     cols_d = _read_cols(STUDY1_D)
     cols_h = _read_cols(STUDY1_H)
-    cols_2 = _read_cols(STUDY2)
+    # study2_scada.csv is stored slim; document the columns as published and as
+    # load_study2() returns them (slim file + study1_daily join).
+    cols_2 = study2_io.wide_columns(STUDY2, STUDY1_D)
     cols_3 = _read_cols(STUDY3)
 
     df_d = _build_sheet(cols_d, ["study1_daily"])

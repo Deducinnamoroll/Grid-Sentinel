@@ -53,6 +53,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from features import build_feature_table, build_study1_residual_signal, FEATURE_COLS  # noqa: E402
 
+# study2_scada.csv is stored slim; load_study2() re-joins study1_daily's columns.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "Pipeline"))
+from study2_io import load_study2  # noqa: E402
+
 STUDY2_CSV = REPO_ROOT / "Dataset" / "study2_scada.csv"
 RISK_LOG = REPO_ROOT / "Dataset" / "predictions" / "study2_risk.csv"
 
@@ -157,7 +161,7 @@ def main():
         print(f"ERROR: {STUDY2_CSV} not found. Run the daily scrape / build_all.py first.")
         sys.exit(1)
 
-    scada = pd.read_csv(STUDY2_CSV, parse_dates=["date"])
+    scada = load_study2(parse_dates=True)
     scada = scada.sort_values(["date", "time"]).reset_index(drop=True)
 
     # Built once and reused for every target day: Study 1's residual signal trains its

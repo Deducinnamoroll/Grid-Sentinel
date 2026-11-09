@@ -2,8 +2,8 @@
 
 The dashboard is a static React app with no backend, it fetches JSON
 directly from the browser. study1_hourly.csv (36MB), study2_scada.csv
-(60MB) and study3_states.csv are far too large to fetch client-side just to
-show a monthly trend or a single day's timeline, so this script precomputes
+(10MB slim, 70MB once re-joined with study1_daily) and study3_states.csv are
+far too large to fetch client-side just to show a monthly trend or a single day's timeline, so this script precomputes
 the small aggregates each tab actually needs. Each tab gets its own JSON
 file, fetched only when that tab is first opened, so the Overview tab never
 pays for the Models tab's 15-min risk history. Re-run whenever the source
@@ -44,6 +44,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from sklearn.metrics import precision_recall_curve
+
+# study2_scada.csv is stored slim; load_study2() re-joins study1_daily's columns
+# (Pipeline/docs/study2_io_notes.md). This file sits next to study2_io.py, so the
+# script's own directory is already on sys.path.
+from study2_io import load_study2
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DATASET_DIR = REPO_ROOT / "Dataset"
@@ -162,7 +167,7 @@ def build_era2_corridor_corr():
 def _load_study2_base_df(f):
     """Common Era-3 EDA setup shared by every finding below -- same four
     calls 01_eda.ipynb opens with."""
-    scada = pd.read_csv(DATASET_DIR / "study2_scada.csv", parse_dates=["date"])
+    scada = load_study2(parse_dates=True)
     scada = scada.sort_values(["date", "time"]).reset_index(drop=True)
     df = f.drop_bad_days(scada)
     df = f.add_datetime(df)
@@ -260,7 +265,7 @@ def build_feature_importance(study2_f):
     study1_importance.columns = ["feature", "importance"]
 
     # --- Study 2: violation + ramp-shock classifiers ---
-    scada = pd.read_csv(DATASET_DIR / "study2_scada.csv", parse_dates=["date"])
+    scada = load_study2(parse_dates=True)
     scada = scada.sort_values(["date", "time"]).reset_index(drop=True)
     feat_df2 = study2_f.build_feature_table(scada)
 

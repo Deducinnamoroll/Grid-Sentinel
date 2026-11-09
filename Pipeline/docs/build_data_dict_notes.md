@@ -18,7 +18,7 @@ Our datasets have 180 columns total, with names like `ir_er_nr_import_mu` or `fr
 | Sheet | Contents |
 |-------|----------|
 | `study1_daily` | All 144 columns from `study1_daily.csv` |
-| `study2_scada` | All 164 columns from `study2_scada.csv` |
+| `study2_scada` | All 164 columns of `study2_scada` as published on Kaggle and as `study2_io.load_study2()` returns it. Since 2026-11-10 the committed file has 21; the list comes from `study2_io.wide_columns()`, which adds `study1_daily`'s header. |
 | `study1_hourly` | All 151 columns from `study1_hourly.csv` |
 | `study3_states` | All 10 columns from `study3_states.csv` (added 2026-07-10) |
 | `master` | Union of all unique column names across the four datasets (180) |

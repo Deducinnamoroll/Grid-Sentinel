@@ -218,8 +218,10 @@ def build_study1_residual_signal() -> pd.DataFrame:
 
 def build_feature_table(scada_df: pd.DataFrame, study1_residual: pd.DataFrame = None,
                          violation_lead_slots: int = LEAD_SLOTS) -> pd.DataFrame:
-    """Full pipeline: assumes scada_df is study2_scada.csv already loaded with
-    date parsed as datetime and hhmm as the minutes-since-midnight integer column.
+    """Full pipeline: assumes scada_df is the wide study2 frame (the repo's slim
+    study2_scada.csv joined with study1_daily by Pipeline/study2_io.load_study2(), or
+    the Kaggle copy, which is already joined) with date parsed as datetime and hhmm
+    as the minutes-since-midnight integer column.
 
     violation_lead_slots defaults to LEAD_SLOTS (4) but can be overridden -- used by
     03_violation_baseline.ipynb's shorter-lead-window experiment. ramp_lead's window

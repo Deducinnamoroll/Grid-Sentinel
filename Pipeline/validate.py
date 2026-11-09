@@ -21,6 +21,9 @@ from pathlib import Path
 
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import study2_io  # noqa: E402
+
 # ── Paths ─────────────────────────────────────────────────────────────────────
 REPO_ROOT   = Path(__file__).resolve().parent.parent
 DATASET_DIR = REPO_ROOT / "Dataset"
@@ -49,7 +52,7 @@ BASELINE_ROWS = {
 BASELINE_COLS = {
     "study1_daily":  144,
     "study1_hourly": 151,
-    "study2_scada":  164,
+    "study2_scada":  164,   # wide frame (slim file + study1_daily join), not the committed file
     "study3_states": 10,
 }
 
@@ -306,9 +309,31 @@ def check_study1_daily() -> None:
 
 def check_study2_scada() -> None:
     label = "study2_scada"
-    df = _load(STUDY2, label)
-    if df is None:
+    if not STUDY2.exists():
+        fail(label, f"file not found: {STUDY2}")
         return
+
+    # The committed file is slim: it must not carry study1_daily's columns again
+    # (that broadcast copy is what pushed it towards GitHub's 100 MB limit), and
+    # every SCADA date needs a study1_daily row to re-join from. See
+    # Pipeline/docs/study2_io_notes.md.
+    raw = pd.read_csv(STUDY2, low_memory=False)
+    s1 = pd.read_csv(STUDY1_D, low_memory=False)
+    dup_cols = [c for c in raw.columns if c in set(s1.columns) and c != "date"]
+    if dup_cols:
+        fail(label, f"committed file repeats {len(dup_cols)} study1_daily column(s) "
+                    f"(run python Pipeline/study2_io.py --slim-in-place): {dup_cols[:5]}")
+    else:
+        ok(label, f"committed file is slim ({len(raw.columns)} cols, "
+                  f"{STUDY2.stat().st_size / 1e6:.1f} MB)")
+    orphan = sorted(set(raw["date"].astype(str)) - set(s1["date"].astype(str)))
+    if orphan:
+        fail(label, f"{len(orphan)} SCADA date(s) have no study1_daily row to join: {orphan[:5]}")
+    else:
+        ok(label, "every SCADA date has a study1_daily row")
+
+    # All checks below run on the joined (wide) frame, as every consumer sees it.
+    df = study2_io.widen(raw, s1)
 
     # Column count
     n_cols = len(df.columns)

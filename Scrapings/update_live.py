@@ -3,7 +3,9 @@ update_live.py -- Daily incremental update for Grid-Sentinel live pipeline.
 
 Downloads today's PSP file from NLDC, parses it, and appends new rows to:
   - Dataset/study1_daily.csv   (one daily row)
-  - Dataset/study2_scada.csv   (96 fifteen-minute rows, only if TimeSeries sheet present)
+  - Dataset/study2_scada.csv   (96 fifteen-minute rows, only if TimeSeries sheet present;
+                                stored slim, without the study1_daily columns -- see
+                                Pipeline/study2_io.py)
   - Dataset/study3_states.csv  (~37 state/UT/entity rows, section C)
 
 Exit codes:
@@ -35,6 +37,7 @@ FILE2_RAW    = REPO_ROOT / "Dataset" / "Raw" / "File2_Raw"
 FILE3_RAW    = REPO_ROOT / "Dataset" / "Raw" / "File3_Raw"
 
 sys.path.insert(0, str(SCRAPERS_DIR))
+sys.path.insert(0, str(REPO_ROOT / "Pipeline"))
 
 
 def download_today(target_date: date, out_dir: Path) -> Path | None:
@@ -182,8 +185,16 @@ def append_study3(raw_file: Path) -> bool:
 
 
 def append_study2(raw_file: Path) -> bool:
-    """Parse raw_file timeseries, append 96 rows to study2_scada.csv. Returns True if rows added."""
+    """Parse raw_file timeseries, append 96 rows to study2_scada.csv. Returns True if rows added.
+
+    The parser broadcasts the day's study1_daily values onto every slot row; those
+    columns are dropped before writing (study2_io.slim) and re-joined on read. So the
+    day must already be in study1_daily.csv -- append_study1 runs first on the same
+    file. If it is not, the day is skipped here and the next --scan retries it,
+    because _dates_in_all_csvs() still reports it missing.
+    """
     from parse_psp_xls_pdf_file3 import build_timeseries_long
+    import study2_io
 
     with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
         tmp_csv = Path(tmp.name)
@@ -217,7 +228,9 @@ def append_study2(raw_file: Path) -> bool:
     new_rows["date"] = pd.to_datetime(new_rows["date"], format="%Y-%m-%d").dt.strftime("%Y-%m-%d")
     new_date = new_rows["date"].iloc[0]
 
-    existing = pd.read_csv(STUDY2_CSV)
+    # round_trip: the whole file is rewritten below, and the default parser can
+    # change the last digit of untouched cells.
+    existing = pd.read_csv(STUDY2_CSV, float_precision="round_trip")
     existing["date"] = pd.to_datetime(existing["date"], format="%Y-%m-%d").dt.strftime("%Y-%m-%d")
 
     if new_date in existing["date"].values:
@@ -228,6 +241,28 @@ def append_study2(raw_file: Path) -> bool:
     if len(new_rows) < 10:
         print(f"  study2_scada: {new_date} has only {len(new_rows)} slots -- stub, skipping.")
         return False
+
+    # The broadcast daily columns come back from study1_daily on read, so that row
+    # has to exist. Compare the values too: both parsers read the same MOP_E sheet
+    # and agreed on all 718 days at the switch (2026-11-10); a difference would mean
+    # one of them changed, and study1_daily's value is the one consumers will see.
+    s1 = pd.read_csv(STUDY1_CSV)
+    s1["date"] = s1["date"].astype(str)
+    s1_day = s1[s1["date"] == new_date]
+    if s1_day.empty:
+        print(f"  study2_scada: {new_date} is not in study1_daily.csv yet -- skipping "
+              f"(its daily columns are joined from there). The next scan retries it.")
+        return False
+    shared = [c for c in new_rows.columns if c in s1_day.columns and c != "date"]
+    ours = new_rows[shared].iloc[0]
+    theirs = s1_day[shared].iloc[0]
+    diff = [c for c in shared
+            if not (pd.isna(ours[c]) and pd.isna(theirs[c]))
+            and not _same_value(ours[c], theirs[c])]
+    if diff:
+        print(f"  study2_scada: WARNING {new_date}: {len(diff)} daily column(s) differ from "
+              f"study1_daily, which wins on read: {diff[:8]}")
+    new_rows = study2_io.slim(new_rows, list(s1.columns))
 
     # Align columns
     for col in existing.columns:
@@ -244,6 +279,14 @@ def append_study2(raw_file: Path) -> bool:
     updated.to_csv(STUDY2_CSV, index=False)
     print(f"  study2_scada: appended {len(new_rows)} rows for {new_date}")
     return True
+
+
+def _same_value(a, b) -> bool:
+    """Equal as numbers (to float noise) or as text."""
+    try:
+        return abs(float(a) - float(b)) <= 1e-9 * max(1.0, abs(float(a)))
+    except (TypeError, ValueError):
+        return str(a) == str(b)
 
 
 def validate(study1_changed: bool, study2_changed: bool, study3_changed: bool = False):

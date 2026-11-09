@@ -10,10 +10,10 @@ Covers the Indian national grid from 2018 onward across four complementary datas
 
 | File | Rows | Cols | Period | Granularity |
 |------|------|------|--------|-------------|
-| `study1_daily.csv` | 2,800 | 144 | Dec 2018 → present | 1 row per day |
+| `study1_daily.csv` | 2,801 | 144 | Dec 2018 → present | 1 row per day |
 | `study1_hourly.csv` | 46,728 | 151 | Jan 2019 → Apr 2024 | 1 row per hour |
-| `study2_scada.csv` | 68,604 | 164 | Nov 2024 → present | 1 row per 15-min block |
-| `study3_states.csv` | 103,985 | 10 | Dec 2018 → present | 1 row per state/UT/entity per day |
+| `study2_scada.csv` | 68,700 | 164 | Nov 2024 → present | 1 row per 15-min block |
+| `study3_states.csv` | 104,024 | 10 | Dec 2018 → present | 1 row per state/UT/entity per day |
 
 Row counts grow daily via automated updates — treat as a snapshot, not a live figure.
 
@@ -76,6 +76,14 @@ All 144 daily PSP feature columns are broadcast (repeated) across the 24 hourly 
 ### study2_scada.csv — 15-Minute SCADA Frequency Data
 
 One row per 15-minute block (96 per day). Built from the `TimeSeries` sheet in NLDC XLS files, available from November 2024 onward. Daily MOP_E, IR-Line, and CrossBorder features are broadcast onto each 15-minute row.
+
+The Kaggle copy has all 164 columns. The copy in the GitHub repository is stored slim (21 columns: the timestamp, the SCADA readings and `time_max_demand_met_*`) to stay under GitHub's file size limit. The other 143 columns are exactly that day's row of `study1_daily.csv`. To get the full table from the repository, join on `date`:
+
+```python
+s2 = pd.read_csv("study2_scada.csv").merge(pd.read_csv("study1_daily.csv"), on="date", how="left")
+```
+
+`Pipeline/study2_io.py` (`load_study2()`) does the same.
 
 **Key column groups:**
 

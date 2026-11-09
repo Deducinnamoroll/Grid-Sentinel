@@ -20,8 +20,10 @@ Runs five steps in sequence. Steps 1 through 4 call the parser scripts as subpro
 | 1 | `Dataset/Raw/File1_Raw/` | `tmp/f1_daily.csv` | `Scrapings/parse_psp_pdf_xls_file1.py` |
 | 2 | `Dataset/Raw/File2_Raw/` | `Dataset/study1_daily.csv` | `Scrapings/parse_psp_pdf_xls_file2.py` |
 | 3 | `Dataset/Raw/File2_Raw/` | `Dataset/study3_states.csv` | `Scrapings/parse_psp_states.py` |
-| 4 | `Dataset/Raw/File3_Raw/` | `Dataset/study2_scada.csv` | `Scrapings/parse_psp_xls_pdf_file3.py long` |
+| 4 | `Dataset/Raw/File3_Raw/` | `Dataset/study2_scada.csv` | `Scrapings/parse_psp_xls_pdf_file3.py long`, then `Pipeline/study2_io.py --slim-in-place` |
 | 5 | `tmp/f1_daily.csv` + `Reference/hourlyLoadDataIndia.xlsx` | `Dataset/study1_hourly.csv` | in-process pandas join |
+
+Step 4's second command (added 2026-11-10) removes the `study1_daily` columns that the parser broadcasts onto every slot, so the committed file stays far below GitHub's 100 MB limit (see `study2_io_notes.md`). It refuses, and the build fails, if any dropped value differs from `study1_daily.csv`. So if File2 parsing changed too, rebuild `study1_daily` (step 2) in the same run. The summary at the end shows the slim file (21 columns).
 
 Step 5 is a left join: every daily PSP row in `tmp/f1_daily.csv` broadcasts onto all 24 hourly rows for that date in the Kaggle hourly load file.
 
