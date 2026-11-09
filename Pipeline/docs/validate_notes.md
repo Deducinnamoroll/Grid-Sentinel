@@ -75,7 +75,7 @@ The committed file is slim (no `study1_daily` columns, see `study2_io_notes.md`)
 | Days with < 90 slots | FAIL | Zero allowed — corrupted source file (generalized 2026-07-11 from a 63-slot-only check; see below) |
 | Days outside 95-98 slots | FAIL if > 10 days, WARN if <= 10 | Each day should have 96 fifteen-minute slots |
 | Days not exactly 96 slots | WARN | Informational count only |
-| `freq_hz` range | WARN | Values must be within [47, 52] Hz |
+| `freq_hz` range | WARN | Values must be within [47, 52] Hz (the 2 zeros it caught were dropout readings, blanked on 2026-11-10, see `parse_psp_xls_pdf_file3_notes.md`) |
 | `share_res_pct` vs gen columns | FAIL | Within 1.0 point of `gen_res_mu / gen_total_mu * 100` |
 | `share_nonfossil_pct` vs gen columns | FAIL | Within 1.0 point of `(gen_hydro_mu + gen_nuclear_mu + gen_res_mu) / gen_total_mu * 100` |
 | `freq_fvi` range | FAIL outside [0, 5], WARN above 1 | Real days 2018-2026 are 0.01 to 0.43 |

@@ -777,6 +777,33 @@ def _parse_timeseries_time_cell(val):
     return None
 
 
+SCADA_SOURCE_COLS = ("nuclear_mw", "wind_mw", "solar_mw", "hydro_mw",
+                     "gas_mw", "thermal_mw", "others_mw")
+
+
+def _blank_scada_dropouts(rec):
+    """Turn SCADA dropout zeros into missing values, in place.
+
+    NLDC writes 0 when a reading is missing. 0 Hz is not a real frequency (the
+    real range is 49.4-50.5 Hz), and national thermal output never reaches 0 (the
+    lowest real slot is about 57 GW), so a 0 there means the generation feed
+    dropped out. In that case every source that reads 0 is unknown, and
+    total_gen_mw is either 0 or the sum of only the sources that did report.
+    demand_met_mw and net_trans_exchange_mw come from other feeds and are kept
+    (net_trans_exchange_mw is a genuine 0 in ~500 normal slots).
+    See Pipeline/docs/parse_psp_xls_pdf_file3_notes.md.
+    """
+    if rec.get("freq_hz") == 0:
+        rec["freq_hz"] = None
+    if rec.get("thermal_mw") == 0:
+        for c in SCADA_SOURCE_COLS:
+            if rec.get(c) == 0:
+                rec[c] = None
+        if "total_gen_mw" in rec:
+            rec["total_gen_mw"] = None
+    return rec
+
+
 def _xls_parse_timeseries_records(df):
     """
     Parse the TimeSeries sheet into a list of per-15-min-block records --
@@ -860,6 +887,7 @@ def _xls_parse_timeseries_records(df):
         rec = {"hhmm": f"{hh:02d}{mm:02d}", "time": f"{hh:02d}:{mm:02d}"}
         for j, metric_key in col_metric.items():
             rec[metric_key] = _to_float(df.iloc[i, j]) if j < df.shape[1] else None
+        _blank_scada_dropouts(rec)
         # Some sheets repeat a slot row (2024-11-16 has 12:00 and 23:00 twice,
         # identical values). Keep one row per time: an exact repeat is dropped
         # silently, a repeat with different values keeps the first and says so.
