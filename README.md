@@ -1,10 +1,8 @@
 # Grid-Sentinel: Stress Monitoring for India's Power Grid
 
-[![Daily PSP Scrape](https://github.com/Deducinnamoroll/Grid-Sentinel/actions/workflows/daily_scrape.yml/badge.svg)](https://github.com/Deducinnamoroll/Grid-Sentinel/actions/workflows/daily_scrape.yml)
-
 A live monitor and research project for the Indian national grid, built on seven years of the National Load Despatch Centre's (NLDC) daily Power System Position reports. Every day's report is downloaded, parsed and validated into four public datasets (daily, hourly, 15-minute SCADA and state level). Two LightGBM models retrain on that data every run: a demand forecast, and a 15-minute risk score for frequency violations and sudden ramps. A six-tab dashboard shows the latest grid state, a state map, inter-regional and cross-border power flows, renewables, reliability, and how well the models have actually done.
 
-Built with Python, LightGBM, React and Recharts on free public data, running for $0/month on GitHub Actions, Vercel and Kaggle.
+Built with Python, LightGBM, React and Recharts on public NLDC data, with GitHub Actions running the daily pipeline, Vercel hosting the dashboard and Kaggle publishing the datasets.
 
 > **What it's for:** see how India's grid behaved yesterday and over the last seven years in one place, and test one research question with real data: as monitoring got finer and renewables grew, did grid stress become easier or harder to predict?
 
@@ -14,8 +12,6 @@ Built with Python, LightGBM, React and Recharts on free public data, running for
 ![Overview tab: latest published grid status, generation mix and the historical explorer](docs/screenshots/overview.png)
 
 ![States tab: India map of energy by state over the last 365 days, with a ranking by region](docs/screenshots/states.png)
-
-![Models tab: the logged demand forecasts against what actually happened, and their accuracy](docs/screenshots/models.png)
 
 <sub>Screenshots taken from the live dashboard on 9 November 2026, with data through 7 November 2026.</sub>
 
