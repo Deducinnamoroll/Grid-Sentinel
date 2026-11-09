@@ -583,12 +583,16 @@ def _xls_parse_mop_e(df):
                 j = col_map.get(r)
                 return fval(i, j) if j is not None else None
 
-            if "evening peak" in lbl or "(at 19:00" in lbl or "(at 1900" in lbl:
-                for r in list(col_map):
-                    result[f"evening_peak_demand_{r.lower()}_mw"] = gr(r)
-            elif "peak shortage" in lbl:
+            # Shortage first: since 2026-08-05 NLDC labels it "Shoratge (MW) during Evening
+            # Peak hr" (sic), which also contains "evening peak". Checked second, it was
+            # written into evening_peak_demand_* and peak_shortage_* stayed empty.
+            is_shortage = "shortage" in lbl or "shoratge" in lbl
+            if is_shortage and "peak" in lbl:
                 for r in list(col_map):
                     result[f"peak_shortage_{r.lower()}_mw"] = gr(r)
+            elif "evening peak" in lbl or "(at 19:00" in lbl or "(at 1900" in lbl:
+                for r in list(col_map):
+                    result[f"evening_peak_demand_{r.lower()}_mw"] = gr(r)
             elif "energy met" in lbl and "shortage" not in lbl:
                 for r in list(col_map):
                     result[f"energy_met_{r.lower()}_mu"] = gr(r)

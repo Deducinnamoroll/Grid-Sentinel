@@ -66,3 +66,7 @@ Depends on `pdfplumber` (PDF era), `pandas` + `xlrd` (XLS era). No dependency on
 `date, region, state, max_demand_met_mw, shortage_max_demand_mw, energy_met_mu, drawal_schedule_mu, od_ud_mu, max_od_mw, energy_shortage_mu` — 10 columns, long format. Chosen over wide (one row per date, ~40 states × 7 metrics ≈ 280 columns) because long format matches how a per-entity time series is actually queried or joined.
 
 Verification (2026-07-10): `Pipeline/validate.py --only study3` passes all 6 checks; 5 state/date combinations spot-checked by hand against raw source (2 PDF-era, 3 XLS-era) — all match exactly. 99,208 rows total, 2018-12-31 → present.
+
+## Fix 2026-11-10: max OD printed as "OD/ UD" (from Feb 2026)
+
+From mid-February 2026 most reports print the max OD column as a pair, "max OD/ max UD (MW)", for example "1137/ -1136", instead of a single number. `_to_float` returned None for it, so `max_od_mw` was empty for almost every row from 2026-02-13 (2026 coverage had fallen to 14%). `_to_float` now takes the number before the slash, so `max_od_mw` keeps its meaning (maximum over-drawal). The 10,508 empty values from December 2025 on were re-parsed and filled; the 2,886 values already present all matched the fixed parser.

@@ -68,3 +68,11 @@ python Scrapings/parse_psp_pdf_xls_file2.py single_file.pdf   # prints parsed di
 ```
 
 Called as steps 1 and 2 of `Pipeline/build_all.py` (subprocess), and incrementally by `append_study1()` in `Scrapings/update_live.py`. Depends on `pdfplumber` (PDF era) and `pandas` + `xlrd` (XLS era).
+
+## Fix 2026-11-10: relabelled shortage row (from the 2026-08-05 report)
+
+From the report for 2026-08-05 NLDC renamed two rows of section A: "Demand Met during Evening Peak hrs(MW) (at 20:00 hrs; from RLDCs)" became "Demand Met (MW) during Evening Peak hr (19:00hrs)", and "Peak Shortage (MW)" became "Shoratge (MW) during Evening Peak hr (19:00hrs)" (their typo). The shortage label now also contains "evening peak", and the XLS branch tested "evening peak" first, so the shortage figures (usually 0) were written into `evening_peak_demand_*` and `peak_shortage_*` stayed empty. 96 days (2026-08-05 to 2026-11-08) were affected, in `study1_daily` and in the daily columns broadcast onto `study2_scada`.
+
+All three parsers (`file1`, `file2`, `file3`) now test for a shortage label ("shortage" or "shoratge", plus "peak") before the evening-peak label. The 96 days were re-parsed and only those 12 columns rewritten; old-format files parse exactly as before (checked on 2023-06-01 and 2026-08-04). Note the evening peak is now measured at 19:00 rather than 20:00, and `peak_shortage_*` from 2026-08-05 is the shortage at that evening peak.
+
+Why validation missed it: the values were zeros, not nulls, so the null-rate check did not fire.

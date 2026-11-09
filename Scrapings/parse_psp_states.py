@@ -145,6 +145,11 @@ def _to_float(v):
     if s in ("", "-", "--", "----------", "nan", "NaN"):
         return None
     s = s.replace(",", "")
+    # Since Feb 2026 NLDC prints the max OD column as "max OD/ max UD", e.g.
+    # "1137/ -1136". max_od_mw keeps its meaning (max over-drawal), so take
+    # the part before the slash. No other numeric column contains a slash.
+    if "/" in s:
+        s = s.split("/")[0].strip()
     try:
         return float(s)
     except ValueError:
