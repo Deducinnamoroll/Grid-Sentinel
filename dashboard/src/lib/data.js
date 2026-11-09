@@ -1,42 +1,28 @@
-import { useEffect, useState } from 'react'
-
 // One JSON file per tab (built by Pipeline/build_dashboard_data.py), fetched
 // the first time a tab opens and kept for the rest of the visit.
-const cache = new Map()
+const pending = new Map()
+const ready = new Map()
 
-function load(name) {
-  if (!cache.has(name)) {
+export function loadData(name) {
+  if (!pending.has(name)) {
     const p = fetch(`/data/${name}.json`).then((res) => {
       if (!res.ok) throw new Error(`HTTP ${res.status} for ${name}.json`)
       return res.json()
     })
     // A failed fetch must not stay cached, or a retry would never refetch.
-    p.catch(() => cache.delete(name))
-    cache.set(name, p)
+    p.then(
+      (d) => ready.set(name, d),
+      () => pending.delete(name),
+    )
+    pending.set(name, p)
   }
-  return cache.get(name)
+  return pending.get(name)
 }
 
-export function useTabData(name) {
-  const [state, setState] = useState({ name: null, data: null, error: null })
-
-  useEffect(() => {
-    let alive = true
-    load(name)
-      .then((data) => alive && setState({ name, data, error: null }))
-      .catch((err) => alive && setState({ name, data: null, error: err.message }))
-    return () => {
-      alive = false
-    }
-  }, [name])
-
-  // Ignore a result still held from the previously opened tab.
-  if (state.name !== name) return { data: null, error: null, status: 'loading' }
-  return { data: state.data, error: state.error, status: state.error ? 'error' : 'ready' }
-}
-
-export function prefetch(name) {
-  load(name).catch(() => {})
+// The data if it has already arrived, so a revisited tab renders in the same
+// frame instead of flashing a loading state.
+export function peekData(name) {
+  return ready.get(name)
 }
 
 // {"date": [...], "x": [...]} -> [{date, x}, ...]

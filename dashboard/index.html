@@ -7,8 +7,17 @@
     <meta name="description" content="Grid-Sentinel: Indian power grid stress monitoring built on 7 years of NLDC daily and live SCADA data." />
     <title>Grid-Sentinel: India Power Grid Stress Monitor</title>
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="margin:0;background:#06070a">
+    <!-- Shown until React takes over #root, so the first paint is not a blank page. -->
+    <div id="root">
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center">
+        <svg width="44" height="44" viewBox="0 0 32 32" aria-label="Loading Grid-Sentinel" style="animation:gs-pulse 1.2s ease-in-out infinite">
+          <path d="M16 5 L26 11 V21 L16 27 L6 21 V11 Z" fill="none" stroke="#38bdf8" stroke-opacity="0.7" stroke-width="1.6" />
+          <path d="M17.5 9 L11 17 H15.5 L14.5 23 L21 14 H16.5 Z" fill="#38bdf8" />
+        </svg>
+      </div>
+      <style>@keyframes gs-pulse{0%,100%{opacity:.35;transform:scale(.94)}50%{opacity:1;transform:scale(1)}}</style>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
