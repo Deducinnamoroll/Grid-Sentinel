@@ -293,6 +293,14 @@ jobs:
             echo "::error title=Scraper crashed::update_live.py raised an exception (exit $code). See the 'Run daily update' log."
             exit 1
           fi
+          # Scan mode catches a per-file error, keeps going and exits 0, so the other
+          # datasets still get that day. That once hid a study1_daily failure behind a
+          # green run (2026-11-09), so treat any caught error as a failure too.
+          if [ -f scrape.log ] && grep -q "ERROR processing" scrape.log; then
+            grep "ERROR processing" scrape.log
+            echo "::error title=A dataset skipped a file::update_live.py could not append a file to at least one dataset (lines above). The other datasets were updated; the failed one is missing that day until fixed and re-scanned."
+            exit 1
+          fi
 
       - name: Fail the run if the data is stale
         if: always()

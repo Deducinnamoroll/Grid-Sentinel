@@ -120,6 +120,9 @@ def append_study1(raw_file: Path) -> bool:
         if col not in new_row.columns:
             new_row[col] = float("nan")
     new_row = new_row[existing.columns]
+    # parse_file returns a datetime.date; the existing column is ISO strings.
+    # Store the string so the column has one type and the sort below works.
+    new_row["date"] = row_date
 
     updated = pd.concat([existing, new_row], ignore_index=True)
     # Keep date order even when a scan or backfill appends an older day after
