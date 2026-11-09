@@ -71,6 +71,10 @@ On 2026-09-30 NLDC began publishing `Bulk Consumer_WR/SR/ER/NER ISTS` rows in se
 
 A daily schedule (10:30 UTC, added 2026-11-08) is a watchdog, not a second data source. GitHub's runners cannot download NLDC files (checked 2026-11-08: the browser-free CDN route fails in CI and Playwright is not installed; the original crons were dropped on 2026-06-24 for this reason), so new days still arrive only through the local scheduler's raw-file push. The scheduled run's job is to reach the stale-data step, so a stopped local scheduler turns a run red within about 5 days instead of going unnoticed. Runs are serialized with a `concurrency` group, and the commit step rebases before pushing in case a raw-file push landed mid-run.
 
+### Kaggle "About Dataset" text
+
+The Kaggle push step fills the `subtitle` and `description` fields of the uploaded `dataset-metadata.json` from `Dataset/README.md` at push time (added 2026-11-09), so the Kaggle page text follows the README on every version push. Edit the README, not the Kaggle page: hand edits on Kaggle get overwritten by the next push.
+
 ---
 
 ## Verification (2026-07-10)
