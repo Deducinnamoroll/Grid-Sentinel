@@ -844,6 +844,7 @@ def _xls_parse_timeseries_records(df):
         return records
 
     data_started = False
+    seen = {}  # hhmm -> first record with that time
     for i in range(header_idx + 1, len(df)):
         cell_val = df.iloc[i, 0]
         if pd.isna(cell_val):
@@ -859,6 +860,16 @@ def _xls_parse_timeseries_records(df):
         rec = {"hhmm": f"{hh:02d}{mm:02d}", "time": f"{hh:02d}:{mm:02d}"}
         for j, metric_key in col_metric.items():
             rec[metric_key] = _to_float(df.iloc[i, j]) if j < df.shape[1] else None
+        # Some sheets repeat a slot row (2024-11-16 has 12:00 and 23:00 twice,
+        # identical values). Keep one row per time: an exact repeat is dropped
+        # silently, a repeat with different values keeps the first and says so.
+        prev = seen.get(rec["hhmm"])
+        if prev is not None:
+            if prev != rec:
+                print(f"  TimeSeries: slot {rec['time']} appears twice with different "
+                      f"values -- keeping the first")
+            continue
+        seen[rec["hhmm"]] = rec
         records.append(rec)
 
     return records
