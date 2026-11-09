@@ -212,17 +212,10 @@ jobs:
              Dataset/README.md \
              Dataset/dataset-metadata.json \
              /tmp/kaggle_push/
-          # Kaggle's "About Dataset" text comes from the metadata's description field
-          # on every version push, so fill it from the README here. The README stays
-          # the one place to edit it. Subtitle must be 20 to 80 characters.
-          python - <<'PY'
-          import json
-          p = "/tmp/kaggle_push/dataset-metadata.json"
-          meta = json.load(open(p, encoding="utf-8"))
-          meta["subtitle"] = "Daily Indian national grid data from NLDC PSP reports, 2018 to present"
-          meta["description"] = open("Dataset/README.md", encoding="utf-8").read()
-          json.dump(meta, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
-          PY
+          # Live row counts into the README table, README as Kaggle's About text, and
+          # per-column descriptions from data_dictionary.xlsx. See
+          # Pipeline/docs/kaggle_metadata_notes.md.
+          python Pipeline/kaggle_metadata.py /tmp/kaggle_push
           ok=0
           for attempt in 1 2 3; do
             if kaggle datasets version \

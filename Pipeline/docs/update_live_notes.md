@@ -73,7 +73,7 @@ A daily schedule (10:30 UTC, added 2026-11-08) is a watchdog, not a second data 
 
 ### Kaggle "About Dataset" text
 
-The Kaggle push step fills the `subtitle` and `description` fields of the uploaded `dataset-metadata.json` from `Dataset/README.md` at push time (added 2026-11-09), so the Kaggle page text follows the README on every version push. Edit the README, not the Kaggle page: hand edits on Kaggle get overwritten by the next push.
+The Kaggle push step runs `Pipeline/kaggle_metadata.py` on the upload folder (added 2026-11-09). It puts live row counts into the README, uses the README as the About text and adds per-column descriptions from `data_dictionary.xlsx`. Edit the README or dictionary, not the Kaggle page: hand edits on Kaggle get overwritten by the next push. See `kaggle_metadata_notes.md`.
 
 ---
 

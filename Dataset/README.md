@@ -10,10 +10,10 @@ Covers the Indian national grid from 2018 onward across four complementary datas
 
 | File | Rows | Cols | Period | Granularity |
 |------|------|------|--------|-------------|
-| `study1_daily.csv` | 2,680 | 144 | Dec 2018 → present | 1 row per day |
+| `study1_daily.csv` | 2,800 | 144 | Dec 2018 → present | 1 row per day |
 | `study1_hourly.csv` | 46,728 | 151 | Jan 2019 → Apr 2024 | 1 row per hour |
-| `study2_scada.csv` | 57,084 | 164 | Nov 2024 → present | 1 row per 15-min block |
-| `study3_states.csv` | 99,248 | 10 | Dec 2018 → present | 1 row per state/UT/entity per day |
+| `study2_scada.csv` | 68,604 | 164 | Nov 2024 → present | 1 row per 15-min block |
+| `study3_states.csv` | 103,985 | 10 | Dec 2018 → present | 1 row per state/UT/entity per day |
 
 Row counts grow daily via automated updates — treat as a snapshot, not a live figure.
 
