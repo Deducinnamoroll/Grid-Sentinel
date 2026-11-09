@@ -21,6 +21,10 @@ Run by the "Push to Kaggle" step of `.github/workflows/daily_scrape.yml` on the 
 
 `kaggle datasets version` applies `subtitle`, `description` and the per-file `resources` on every push, so hand edits on the Kaggle page are overwritten. Edit the README, the dictionary (via `build_data_dict.py`) or the `FILES` dict instead.
 
+## Tags
+
+`keywords` in `Dataset/dataset-metadata.json` are sent as the dataset's tags on every `kaggle datasets version` push (added 2026-11-09). They must be existing Kaggle tag names, in lower case.
+
 ## License is not pushed
 
 `kaggle datasets version` (kaggle 2.2.5) sends subtitle, description and file resources, but not `licenses`. The license in `Dataset/dataset-metadata.json` (CC-BY-SA-4.0 since 2026-11-09, matching `Dataset/README.md` and the attribution the NDSAP source needs) only applies on first creation; on the live dataset it is set by hand in Kaggle's dataset settings. Do not switch to `kaggle datasets metadata --update` to push it: that call also replaces the collaborator list with the file's (none), which would drop collaborators.
