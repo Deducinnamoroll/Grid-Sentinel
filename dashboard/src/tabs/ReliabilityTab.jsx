@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import {
   AreaChart, Area, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Brush,
 } from 'recharts'
+import DrawalPanel from '../components/DrawalPanel'
 import { SectionCard, StatCard, StatGrid, ChartBox, ChartTooltip } from '../components/ui'
 import { AXIS, GRID, LEGEND } from '../lib/chart'
 import { zipColumns } from '../lib/data'
@@ -120,6 +121,8 @@ export default function ReliabilityTab({ data }) {
       <SectionCard title="Energy shortage" subtitle="Demand that could not be met, monthly average per day, by region." accent="rose">
         <RegionBars title="Energy not served (MU/day), monthly average" cols={data.shortageMonthly} unit="MU/day" digits={2} />
       </SectionCard>
+
+      {data.drawal && <DrawalPanel drawal={data.drawal} />}
 
       <SectionCard title="Year by year" subtitle="Calendar-year averages. Days counts the days with a published report." accent="rose">
         <div className="overflow-x-auto">

@@ -47,6 +47,19 @@ It takes about 15 to 20 seconds locally. Most of that is reloading the SCADA fil
 | `reliability.json` | 148 KB | `daily` (FVI, frequency bands, forced outage, shortage), `outageMonthly`, `shortageMonthly` (by region), `yearly` |
 | `models.json` | 281 KB | `forecast`, `risk` (grouped by day), `calibration`, `featureImportance`, `hourDowHeatmap`, `monthSeasonality`, `solarHourRates`, `resShareFindings` |
 
+**Added 2026-11-10** (all five previously unused groups of columns):
+
+| Key | In | Contents |
+|-----|----|----------|
+| `dayIndex` | `overview.json` | months available and first/last day for the day view; the data itself is in `days/YYYY-MM.json` |
+| `days/YYYY-MM.json` | own files, about 140 KB each | every SCADA day's 96 slots: thermal, hydro, gas, nuclear, solar, wind, others, demand (MW) and frequency (Hz). Bad days are dropped as in Study 2. A month file is rewritten only when its content changes, so a daily run touches only the current month |
+| `regions` | `states.json` | monthly peak and average daily energy per region, plus each region's share and growth over the last 365 days and the latest day's max demand, evening peak and shortage at the evening peak |
+| `drawal` | `reliability.json` | monthly mean of each region's net over/under-drawal (`ie_odud_*`), and per state over the last 365 days: total and net deviation from schedule, share of days over-drawn, largest over-drawal (`max_od_mw`) |
+| `peakTiming` | `renewables.json` | monthly averages of the peak inside and outside solar hours, share of days the solar-hour peak was higher, shortage in each window (from 2023-05; months under 10 days dropped), and per month the count of days the national peak fell in each hour (SCADA reports, from 2024-11) |
+| `regionalForecast` | `models.json` | the regional forecast log (`Dataset/predictions/study1_regional_forecast.csv`) |
+
+The reported time of the national peak was checked against the 15-minute SCADA demand: same hour on 83% of days, the rest on a neighbouring hour.
+
 Every file has an `asOf` date. Before 2026-11-08 the script wrote one `dashboard.json` (~2.5 MB) that every visitor downloaded in full; the script now deletes that file if it finds it.
 
 **Format choices that keep the files small:**

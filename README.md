@@ -31,6 +31,7 @@ Grid-Sentinel is an independent student project. It is **not affiliated with NLD
 - **The ramp-shock classifier is strong** (PR-AUC 0.746 against a 0.177 base rate, about 4.2x lift); **the frequency-violation classifier is real but modest** (PR-AUC 0.154 against 0.031, about 5.0x lift). That gap suggests the two are different phenomena, not two views of one.
 - **A tested and falsified hypothesis**: ramp shocks do not precede frequency violations more often than chance. Reported as a dead end rather than left out.
 - **A methodology bug was found and fixed**: operating thresholds had been chosen on the test set, which inflated several operating-point metrics. They are now chosen on the validation set and the figures above are the corrected ones.
+- **Solar has moved the daily peak but not the shortage**: in winter the day's highest demand comes in solar hours on nearly every day, yet in 41 of 44 months since May 2023 more demand went unmet outside solar hours.
 - **The live demand forecast averages about 2.9% error** over 121 logged forecasts (July to November 2026), scored daily against what actually happened.
 
 ---
@@ -39,10 +40,12 @@ Grid-Sentinel is an independent student project. It is **not affiliated with NLD
 
 ### Overview
 - Latest published peak demand, renewable share, time in the normal frequency band and generation mix
+- A day on the grid: generation by source, demand and frequency every 15 minutes for any day since November 2024
 - Historical explorer from 2019 on, with the three research eras: ramp trend against renewable share (2019 to 2022) and corridor stress correlation (2023 to Oct 2024)
 
 ### States
 - India map coloured by energy, peak demand, growth against the prior year or shortage, with a ranking by region
+- The five regional grids: share of energy, growth, peaks and evening-peak shortage, with monthly history since 2019
 - Monthly trend for any state, UT or grid entity since 2019, plus entities that have no map shape (DVC, Railways, bulk consumers)
 
 ### Power flows
@@ -52,12 +55,15 @@ Grid-Sentinel is an independent student project. It is **not affiliated with NLD
 ### Renewables
 - The duck curve from live SCADA: average 15-minute net demand for any month
 - Solar, wind and hydro generation and share since 2019
+- When the peak happens: the daily peak inside and outside solar hours, the shortage in each, and the hour the national peak was reached each month
 
 ### Reliability
 - Time in each frequency band, frequency variation index, forced outages and energy not served, by region and by year
+- Grid discipline: each region's and state's over- and under-drawal against schedule
 
 ### Models
 - Next-day demand forecast against actuals, daily error and a trailing 7-day MAPE
+- Peak forecasts for each of the five regions, with live and backtest accuracy against naive baselines
 - Holiday correction for the forecast: scales it by the dip the same holiday showed in past years, which cut festival-day error from 12.2% to 2.9% in a 2022 to 2026 backtest
 - 96-slot risk timelines for frequency violations and ramp shocks, with a calibration check that shows whether the stated risk is honest
 

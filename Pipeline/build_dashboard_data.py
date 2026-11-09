@@ -618,6 +618,164 @@ def build_reliability(daily):
     }
 
 
+# --- Regions (States tab, added 2026-11-10) -----------------------------------
+
+def build_regions(daily):
+    """Regional demand: monthly peak and average daily energy per region since
+    2019, each region's share and growth over the last 365 days, and the
+    latest day's section A figures (max demand, evening peak, shortage at the
+    evening peak). The evening-peak columns were repaired on 2026-11-10 (see
+    Pipeline/docs/parse_psp_pdf_xls_notes.md)."""
+    peak_cols = [f"max_demand_met_{r}_mw" for r in REGIONS]
+    energy_cols = [f"energy_met_{r}_mu" for r in REGIONS]
+    d = daily.set_index("date")
+    pm = d[peak_cols].resample("MS").max()
+    em = d[energy_cols].resample("MS").mean()
+    monthly = pd.DataFrame({"month": pm.index.strftime("%Y-%m")})
+    for r in REGIONS:
+        monthly[f"peak_{r}"] = pm[f"max_demand_met_{r}_mw"].values
+        monthly[f"energy_{r}"] = em[f"energy_met_{r}_mu"].values
+
+    latest_date = daily["date"].max()
+    w1 = daily[daily["date"] > latest_date - pd.Timedelta(days=365)]
+    w0 = daily[(daily["date"] <= latest_date - pd.Timedelta(days=365)) & (daily["date"] > latest_date - pd.Timedelta(days=730))]
+    total1 = w1[energy_cols].sum().sum()
+    last = daily.iloc[-1]
+    summary = []
+    for r in REGIONS:
+        e1, e0 = w1[f"energy_met_{r}_mu"].sum(), w0[f"energy_met_{r}_mu"].sum()
+        summary.append({
+            "region": r.upper(),
+            "energyMu": _fnum(e1, 0),
+            "sharePct": _fnum(e1 / total1 * 100, 1) if total1 else None,
+            "growthPct": _fnum((e1 / e0 - 1) * 100, 2) if e0 and len(w0) >= 360 else None,
+            "peakMw": _fnum(w1[f"max_demand_met_{r}_mw"].max(), 0),
+            "latestMaxMw": _fnum(last[f"max_demand_met_{r}_mw"], 0),
+            "latestEveningMw": _fnum(last[f"evening_peak_demand_{r}_mw"], 0),
+            "latestShortageMw": _fnum(last[f"peak_shortage_{r}_mw"], 0),
+            "latestEnergyMu": _fnum(last[f"energy_met_{r}_mu"], 1),
+        })
+    return {
+        "asOf": latest_date.strftime("%Y-%m-%d"),
+        "monthly": columnar(monthly, {c: (0 if c.startswith("peak") else 1) for c in monthly.columns if c != "month"}),
+        "summary": summary,
+    }
+
+
+# --- Over/under-drawal (Reliability tab, added 2026-11-10) --------------------
+
+def build_drawal(daily):
+    """Grid discipline. A region or state that draws more than its schedule
+    over-draws (OD, positive), less under-draws (UD, negative); both push the
+    grid off balance. Regional: monthly mean of the daily net OD/UD (MU/day)
+    from section A. States: last 365 days from section C, plus the largest
+    instantaneous over-drawal (max_od_mw, repaired 2026-11-10)."""
+    cols = [f"ie_odud_{r}_mu" for r in REGIONS]
+    rm = _monthly_mean(daily, cols)
+    rm.columns = ["month"] + [r.upper() for r in REGIONS]
+
+    df = pd.read_csv(DATASET_DIR / "study3_states.csv", parse_dates=["date"])
+    df["state"] = df["state"].replace(STATE_RENAME)
+    latest_date = df["date"].max()
+    w = df[df["date"] > latest_date - pd.Timedelta(days=365)]
+    w = w.groupby(["date", "region", "state"], as_index=False)[["od_ud_mu", "max_od_mw", "drawal_schedule_mu"]].sum(min_count=1)
+    g = w.groupby("state").agg(
+        region=("region", "last"),
+        netMu=("od_ud_mu", "sum"),
+        absMu=("od_ud_mu", lambda x: x.abs().sum()),
+        odDays=("od_ud_mu", lambda x: int((x > 0).sum())),
+        days=("od_ud_mu", "count"),
+        maxOdMw=("max_od_mw", "max"),
+        scheduleMu=("drawal_schedule_mu", "sum"),
+    ).reset_index()
+    g = g[(g["days"] >= 300) & g["state"].map(_is_state)]
+    states = [{
+        "name": r.state, "region": r.region,
+        "netMu": _fnum(r.netMu, 1), "absMu": _fnum(r.absMu, 1),
+        "odDaysPct": _fnum(r.odDays / r.days * 100, 1),
+        "maxOdMw": _fnum(r.maxOdMw, 0),
+        # Deviation as a share of what the state was scheduled to draw.
+        "absPctOfSchedule": _fnum(r.absMu / r.scheduleMu * 100, 2) if r.scheduleMu and r.scheduleMu > 0 else None,
+    } for r in g.sort_values("absMu", ascending=False).itertuples()]
+    return {
+        "asOf": latest_date.strftime("%Y-%m-%d"),
+        "regionMonthly": columnar(rm, {c: 2 for c in rm.columns if c != "month"}),
+        "states": states,
+    }
+
+
+# --- When the peak happens (Renewables tab, added 2026-11-10) -----------------
+
+def build_peak_timing(daily, era3_df):
+    """Two views of solar moving the daily peak. (1) From NLDC's solar-hour /
+    non-solar-hour split (section I, from 2023-04-30): monthly averages of the
+    peak demand met in each window, the share of days the solar-hour peak was
+    the higher one, and the shortage in each window. (2) From the SCADA
+    reports' time of maximum demand (2024-11 on): per month, how many days the
+    national peak fell in each hour."""
+    s = daily.dropna(subset=["solar_hr_peak_mw", "nonsolar_hr_peak_mw"]).copy()
+    s["solarWins"] = (s["solar_hr_peak_mw"] > s["nonsolar_hr_peak_mw"]).astype(float)
+    m = _monthly_mean(s, ["solar_hr_peak_mw", "nonsolar_hr_peak_mw", "solarWins",
+                          "solar_hr_shortage_mw", "nonsolar_hr_shortage_mw"])
+    m.columns = ["month", "solarPeak", "nonSolarPeak", "solarWinsShare", "solarShortage", "nonSolarShortage"]
+    m["solarWinsShare"] = m["solarWinsShare"] * 100
+    # The split starts on 2023-04-30, a one-day month; drop thin months.
+    ndays = s.set_index("date")["solarWins"].resample("MS").count().values
+    m = m[(ndays >= 10)].dropna(subset=["solarPeak"])
+
+    t = era3_df[["date", "time_max_demand_met_total"]].drop_duplicates("date").dropna()
+    t["hour"] = pd.to_numeric(t["time_max_demand_met_total"].astype(str).str.slice(0, 2), errors="coerce")
+    t = t.dropna(subset=["hour"])
+    t["month"] = pd.to_datetime(t["date"]).dt.strftime("%Y-%m")
+    counts = t.groupby(["month", "hour"]).size().unstack(fill_value=0).reindex(columns=range(24), fill_value=0)
+    return {
+        "monthly": columnar(m, {"solarPeak": 0, "nonSolarPeak": 0, "solarWinsShare": 1,
+                                "solarShortage": 0, "nonSolarShortage": 0}),
+        "hourMonths": list(counts.index),
+        "hourCounts": counts.values.astype(int).tolist(),
+    }
+
+
+# --- A day on the grid (Overview tab, added 2026-11-10) -----------------------
+
+DAY_SERIES = {
+    "thermal": "thermal_mw", "hydro": "hydro_mw", "gas": "gas_mw", "nuclear": "nuclear_mw",
+    "solar": "solar_mw", "wind": "wind_mw", "others": "others_mw",
+    "demand": "demand_met_mw", "freq": "freq_hz",
+}
+
+
+def build_day_files(era3_df):
+    """One JSON per month in public/data/days/, each holding every SCADA day's
+    96 slots (generation by source, demand, frequency). Split by month so the
+    page only downloads the month being viewed; a file is rewritten only when
+    its content changes, so a daily run touches just the current month.
+    Returns the index stored in overview.json."""
+    days_dir = OUT_DIR / "days"
+    days_dir.mkdir(parents=True, exist_ok=True)
+    slots = [f"{h:02d}:{m:02d}" for h in range(24) for m in (0, 15, 30, 45)]
+    df = era3_df[["date", "time"] + list(DAY_SERIES.values())].copy()
+    df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
+    df["month"] = df["date"].str.slice(0, 7)
+    written = 0
+    for month, gm in df.groupby("month"):
+        days = {}
+        for date, g in gm.groupby("date"):
+            g = g.drop_duplicates("time").set_index("time").reindex(slots)
+            days[date] = {
+                k: [None if pd.isna(v) else (round(float(v), 2) if k == "freq" else int(round(v))) for v in g[c]]
+                for k, c in DAY_SERIES.items()
+            }
+        text = json.dumps({"slots": slots, "days": days}, separators=(",", ":"), allow_nan=False)
+        path = days_dir / f"{month}.json"
+        if not path.exists() or path.read_text(encoding="utf-8") != text:
+            path.write_text(text, encoding="utf-8")
+            written += 1
+    dates = sorted(df["date"].unique())
+    print(f"day files: {df['month'].nunique()} months, {written} rewritten")
+    return {"months": sorted(df["month"].unique()), "first": dates[0], "last": dates[-1]}
+
+
 # --- Models -----------------------------------------------------------------
 
 def compact_risk(risk):
@@ -679,7 +837,10 @@ def build_models(era3_df, study2_f):
     forecast = pd.read_csv(DATASET_DIR / "predictions" / "study1_forecast.csv")
     risk = pd.read_csv(DATASET_DIR / "predictions" / "study2_risk.csv")
     fi = build_feature_importance(study2_f)
+    regional_path = DATASET_DIR / "predictions" / "study1_regional_forecast.csv"
+    regional = pd.read_csv(regional_path) if regional_path.exists() else pd.DataFrame()
     return {
+        "regionalForecast": clean_records(regional) if len(regional) else [],
         "asOf": str(risk["date"].max()) if len(risk) else None,
         "forecast": clean_records(forecast),
         "risk": compact_risk(risk),
@@ -706,11 +867,11 @@ if __name__ == "__main__":
     era3_df = _load_study2_base_df(study2_f)
     daily = _load_daily()
 
-    _write("overview", build_overview(daily))
-    _write("states", build_states())
+    _write("overview", {**build_overview(daily), "dayIndex": build_day_files(era3_df)})
+    _write("states", {**build_states(), "regions": build_regions(daily)})
     _write("flows", build_flows(daily))
-    _write("renewables", build_renewables(daily, era3_df))
-    _write("reliability", build_reliability(daily))
+    _write("renewables", {**build_renewables(daily, era3_df), "peakTiming": build_peak_timing(daily, era3_df)})
+    _write("reliability", {**build_reliability(daily), "drawal": build_drawal(daily)})
     _write("models", build_models(era3_df, study2_f))
 
     if LEGACY_FILE.exists():

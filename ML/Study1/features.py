@@ -121,8 +121,10 @@ def add_rolling_features(df: pd.DataFrame, col: str = TARGET, windows=(7, 30)) -
     return df
 
 
-def build_feature_table(df: pd.DataFrame) -> pd.DataFrame:
+def build_feature_table(df: pd.DataFrame, col: str = TARGET) -> pd.DataFrame:
     """Full pipeline: assumes df sorted by date ascending, date column parsed as datetime.
+    `col` is the series the lag/rolling features describe (the national peak by
+    default; a regional peak for the regional forecast, added 2026-11-10).
 
     Does NOT shift the target for next-day prediction -- call
     make_next_day_target() on the result before training, so lag/rolling
@@ -131,8 +133,8 @@ def build_feature_table(df: pd.DataFrame) -> pd.DataFrame:
     """
     df = drop_out_of_scope_cols(df)
     df = add_calendar_features(df)
-    df = add_lag_features(df)
-    df = add_rolling_features(df)
+    df = add_lag_features(df, col=col)
+    df = add_rolling_features(df, col=col)
     return df
 
 

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Brush } from 'recharts'
 import india from '@svg-maps/india'
 import StatePanel from '../components/StatePanel'
+import RegionsPanel from '../components/RegionsPanel'
 import { SectionCard, ChartBox, Pills, Select, Empty, ChartTooltip } from '../components/ui'
 import { AXIS, GRID } from '../lib/chart'
 import { zipColumns } from '../lib/data'
@@ -410,6 +411,7 @@ export default function StatesTab({ data }) {
           , recoloured. Boundaries are illustrative.
         </p>
       </SectionCard>
+      {data.regions && <RegionsPanel regions={data.regions} />}
       <StateTrend data={data} selected={selected} onSelect={setSelected} />
       <StatePanel study3Latest={snapshot} />
       <OtherEntities entities={data.entities} />

@@ -105,3 +105,20 @@ Holiday features inside LightGBM (target-day and made-day holiday flags, major-f
 Live check with the shipped code: forecast made 2026-11-06 for Diwali gives 195,989 MW (model alone 219,919), actual 195,673. Logged forecasts made before this change were left as published.
 
 **Limits:** regional festivals not on the central list (for example Ganesh Chaturthi, Pongal, Onam) get no correction, and the largest remaining misses are on days just after a holiday when the made day was the holiday.
+
+## Regional forecasts: `predict_regional.py` (added 2026-11-10)
+
+`ML/Study1/predict_regional.py` forecasts each region's daily peak (`max_demand_met_{nr,wr,sr,er,ner}_mw`) two days ahead with exactly the national setup: it calls `predict.train_and_predict` with `target_col` set to the regional column (lags, rolling features, delta target and holiday correction all follow that column; `build_feature_table` and `train_and_predict` gained a column argument whose default keeps the national forecast byte-identical, checked on the Diwali 2026 forecast). Log: `Dataset/predictions/study1_regional_forecast.csv`, one row per region per target day; same `--date`, `--from`, `--to` options; backfilled from 2026-07-08 to match the national log. CI runs it as step 5a.
+
+Walk-forward backtest, targets 2024-01-01 to 2026-11-08, 1,039 forecasts per region, weekly retrain, holiday correction on. MAPE against two naive baselines (repeat the made day's value; same weekday one week before the target):
+
+| Region | Model | Repeat made day | Same weekday last week |
+|---|---:|---:|---:|
+| NR | 3.91 | 4.19 | 6.49 |
+| WR | 2.65 | 3.35 | 4.62 |
+| SR | 3.53 | 4.91 | 5.80 |
+| ER | 3.76 | 3.94 | 5.80 |
+| NER | 4.96 | 5.64 | 5.93 |
+| National (same run) | 2.33 | 3.13 | 3.80 |
+
+The model beats both baselines everywhere; the margin is thin for ER and NER is the hardest region (smallest, most volatile). The dashboard's Models tab shows these backtest numbers next to the live MAPE from the log.

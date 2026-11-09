@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   AreaChart, Area, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Brush,
 } from 'recharts'
+import PeakTimingPanel from '../components/PeakTimingPanel'
 import { SectionCard, StatCard, StatGrid, ChartBox, Select, Empty, ChartTooltip } from '../components/ui'
 import { AXIS, GRID, LEGEND } from '../lib/chart'
 import { zipColumns } from '../lib/data'
@@ -188,6 +189,7 @@ export default function RenewablesTab({ data }) {
       </SectionCard>
 
       {data.duck?.months?.length ? <DuckCurve duck={data.duck} /> : <Empty>No SCADA profile data.</Empty>}
+      {data.peakTiming && <PeakTimingPanel timing={data.peakTiming} />}
     </>
   )
 }

@@ -7,6 +7,7 @@ import ForecastPanel from '../components/ForecastPanel'
 import RiskPanel from '../components/RiskPanel'
 import AnomalyLog from '../components/AnomalyLog'
 import ResearchFindings from '../components/ResearchFindings'
+import RegionalForecastPanel from '../components/RegionalForecastPanel'
 import { SectionCard, StatCard, StatGrid, ChartBox, Empty, ChartTooltip } from '../components/ui'
 import { AXIS, GRID, LEGEND } from '../lib/chart'
 import { expandRisk } from '../lib/data'
@@ -206,6 +207,7 @@ export default function ModelsTab({ data }) {
     <>
       <ForecastPanel forecast={forecast} />
       <ForecastAccuracy forecast={forecast} />
+      <RegionalForecastPanel rows={data.regionalForecast || []} />
       <RiskPanel risk={risk} />
       <RiskCalibration calibration={data.calibration} />
       <AnomalyLog forecast={forecast} risk={risk} thresholds={data.featureImportance?.thresholds} />

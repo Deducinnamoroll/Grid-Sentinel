@@ -69,7 +69,6 @@ HORIZON_DAYS = 2
 
 FORECAST_COLS = ["prediction_made_date", "target_date", "predicted_mw", "actual_mw", "residual_mw"]
 
-FEATURE_PREFIXES = (f"{TARGET}_lag", f"{TARGET}_roll")
 CALENDAR_COLS = ("dow", "month", "year", "is_weekend", "day_of_year")
 
 
@@ -94,13 +93,16 @@ def _backfill_actuals(log: pd.DataFrame, daily: pd.DataFrame) -> pd.DataFrame:
     return log
 
 
-def train_and_predict(df: pd.DataFrame):
-    """Returns (forecast_mw, latest_data_date, target_date)."""
-    feat_df = build_feature_table(df)
-    feat_df = make_ahead_target(feat_df, horizon=HORIZON_DAYS)
+def train_and_predict(df: pd.DataFrame, target_col: str = TARGET):
+    """Returns (forecast_mw, latest_data_date, target_date). `target_col` is the
+    national peak by default; predict_regional.py passes a regional peak."""
+    TARGET = target_col  # noqa: N806 -- shadows the module constant on purpose
+    feat_df = build_feature_table(df, col=TARGET)
+    feat_df = make_ahead_target(feat_df, horizon=HORIZON_DAYS, col=TARGET)
 
+    prefixes = (f"{TARGET}_lag", f"{TARGET}_roll")
     feature_cols = [c for c in feat_df.columns if
-                     c.startswith(FEATURE_PREFIXES) or c in CALENDAR_COLS]
+                     c.startswith(prefixes) or c in CALENDAR_COLS]
 
     trainable = feat_df.dropna(subset=[f"{TARGET}_lag365"]).reset_index(drop=True)
     train_rows = trainable[trainable[TARGET].notna()]
