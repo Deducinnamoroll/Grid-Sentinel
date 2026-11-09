@@ -349,6 +349,36 @@ def _dates_in_all_csvs() -> set[str]:
     return set.intersection(*present)
 
 
+# Raw files parsed in this run; report_guard checks them after validation.
+PROCESSED_FILES: list[Path] = []
+
+
+def run_guard():
+    """Label check on every report parsed this run and health check on each of
+    their data days (Scrapings/report_guard.py). Findings print as
+    'REPORT CHANGED:' / 'DATA HEALTH:' lines, which the workflow's alarm step
+    turns into a red run. Never stops the update: the day's data still commits."""
+    if not PROCESSED_FILES:
+        return
+    print("\nChecking for report changes and column health...")
+    try:
+        import report_guard as g
+        frames = g.load_frames()
+        n = 0
+        for f in PROCESSED_FILES:
+            for line in g.check_labels(f):
+                print(f"  REPORT CHANGED: {line}")
+                n += 1
+            d = _parse_file_date(f)
+            for line in g.check_health(d, frames) if d else []:
+                print(f"  DATA HEALTH: {line}")
+                n += 1
+        print("  No report changes or broken columns found." if n == 0 else
+              f"  {n} finding(s). Data was still saved; see Pipeline/docs/report_guard_notes.md.")
+    except Exception as e:  # the guard must never break the update
+        print(f"  GUARD ERROR: report_guard failed -- {e!r}")
+
+
 def scan_and_parse(lookback_days: int = DEFAULT_LOOKBACK_DAYS) -> tuple[bool, bool, bool]:
     """
     Parse raw files in FILE3_RAW dated within the last `lookback_days` days that are
@@ -378,6 +408,7 @@ def scan_and_parse(lookback_days: int = DEFAULT_LOOKBACK_DAYS) -> tuple[bool, bo
     scan_errors = []
     for raw_file in raw_files:
         print(f"\nParsing {raw_file.name}...")
+        PROCESSED_FILES.append(raw_file)
         try:
             s1 = append_study1(raw_file)
         except Exception as e:
@@ -453,6 +484,7 @@ def main():
             sys.exit(1)
 
         print(f"\nParsing {raw_file.name}...")
+        PROCESSED_FILES.append(raw_file)
         s1_changed = append_study1(raw_file)
         s2_changed = append_study2(raw_file)
         s3_changed = append_study3(raw_file)
@@ -466,6 +498,7 @@ def main():
     if not ok:
         sys.exit(2)
 
+    run_guard()
     print("\nDone. CSVs updated successfully.")
     sys.exit(0)
 

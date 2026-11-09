@@ -316,6 +316,20 @@ jobs:
             exit 1
           fi
 
+      # Scrapings/report_guard.py, run at the end of update_live.py: a sheet or
+      # label NLDC has never used before, or a column that went empty or to zero.
+      # The data is already committed; this only makes sure someone looks. Added
+      # 2026-11-10 after three silent report changes went unnoticed for weeks.
+      - name: Fail the run if the report changed or a column broke
+        if: always()
+        run: |
+          [ -f scrape.log ] || exit 0
+          if grep -qE "REPORT CHANGED:|DATA HEALTH:|GUARD ERROR:" scrape.log; then
+            grep -E "REPORT CHANGED:|DATA HEALTH:|GUARD ERROR:" scrape.log
+            echo "::error title=NLDC report changed or a column broke::See the lines above. Fix the parser if needed, then accept harmless label changes with: python Scrapings/report_guard.py --accept <raw file>  (see Pipeline/docs/report_guard_notes.md)"
+            exit 1
+          fi
+
       - name: Fail the run if the data is stale
         if: always()
         run: |

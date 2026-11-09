@@ -103,3 +103,7 @@ python Scrapings/update_live.py --scan --lookback 200   # reach further back aft
 ```
 
 Depends on `download_psp_new.py` (same folder) for the CDN fetch logic, and imports `parse_file`/`build_timeseries_long`/`parse_file` from the three per-dataset parsers at call time (not at module load) to avoid unnecessary import cost when only one dataset needs updating.
+
+### Report change and column health guard (added 2026-11-10)
+
+After validation passes, `run_guard()` runs `Scrapings/report_guard.py` on every raw file the run parsed: a label check against `Scrapings/known_report_labels.json` and a health check of each new data day against the 30 days before it. Findings never block the commit; the workflow turns the run red on them. See `report_guard_notes.md`.
