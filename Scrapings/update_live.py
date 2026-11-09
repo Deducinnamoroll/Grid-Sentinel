@@ -122,6 +122,9 @@ def append_study1(raw_file: Path) -> bool:
     new_row = new_row[existing.columns]
 
     updated = pd.concat([existing, new_row], ignore_index=True)
+    # Keep date order even when a scan or backfill appends an older day after
+    # newer ones (as the Oct 2026 backfill did), matching study2/study3.
+    updated = updated.sort_values("date", kind="stable").reset_index(drop=True)
     updated.to_csv(STUDY1_CSV, index=False)
     print(f"  study1_daily: appended {row_date} ({sum(v is not None and str(v) != 'nan' for v in row.values())} non-null fields)")
     return True

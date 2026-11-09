@@ -41,6 +41,8 @@ Tries three methods in order, each covering a different NLDC CDN era:
 | `append_study2()` | `study2_scada.csv` (up to 96 rows) | `parse_psp_xls_pdf_file3.build_timeseries_long()` |
 | `append_study3()` | `study3_states.csv` (~37 rows) | `parse_psp_states.parse_file()`, added 2026-07-10 |
 
+All three re-sort after appending (`study1_daily` by date, `study2_scada` by date and time, `study3_states` by date, region and state), so a scan or backfill that adds an older day after newer ones still leaves the file in order. `append_study1()` gained its sort on 2026-11-09, after the October 2026 backfill left 39 rows out of place; the committed file was re-sorted line by line at the same time, with every row byte-identical.
+
 Each is independent: a failure in one (caught and logged, not raised) doesn't block the other two in scan mode. Each checks whether that date is already present before appending — running the script twice on the same day is a safe no-op, not a duplicate.
 
 ### `append_study3()` specifically
