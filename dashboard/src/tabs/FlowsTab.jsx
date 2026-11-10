@@ -1,3 +1,4 @@
+import { LazyMount } from '../components/ui'
 import { useMemo, useState } from 'react'
 import {
   ComposedChart, Line, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -246,8 +247,12 @@ export default function FlowsTab({ data }) {
         )}
         <p className="mt-3 text-[11px] text-slate-600">All values in MU (million units = GWh) for the day.</p>
       </SectionCard>
+      <LazyMount minHeight={520}>
       <CorridorTrend dailyRows={dailyRows} />
+      </LazyMount>
+      <LazyMount minHeight={620}>
       <CrossBorder xbMonthly={data.xbMonthly} xbLatest={data.xbLatest} />
+      </LazyMount>
     </>
   )
 }

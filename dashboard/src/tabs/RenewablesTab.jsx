@@ -1,3 +1,4 @@
+import { LazyMount } from '../components/ui'
 import { useMemo, useState } from 'react'
 import {
   AreaChart, Area, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Brush,
@@ -115,6 +116,7 @@ export default function RenewablesTab({ data }) {
         </StatGrid>
       </SectionCard>
 
+      <LazyMount minHeight={900}>
       <SectionCard title="Generation from renewables and hydro" subtitle="Monthly average energy per day. Solar passed wind in 2020 and has pulled away since; wind and hydro peak with the monsoon." accent="amber">
         <ChartBox title="MU per day, monthly average" note="Drag the strip below to zoom">
           <div className="h-80">
@@ -187,9 +189,14 @@ export default function RenewablesTab({ data }) {
           </div>
         </ChartBox>
       </SectionCard>
+      </LazyMount>
 
+      <LazyMount minHeight={560}>
       {data.duck?.months?.length ? <DuckCurve duck={data.duck} /> : <Empty>No SCADA profile data.</Empty>}
+      </LazyMount>
+      <LazyMount minHeight={1100}>
       {data.peakTiming && <PeakTimingPanel timing={data.peakTiming} />}
+      </LazyMount>
     </>
   )
 }

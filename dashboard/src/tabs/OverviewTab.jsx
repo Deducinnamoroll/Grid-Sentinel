@@ -1,3 +1,4 @@
+import { LazyMount } from '../components/ui'
 import { useMemo } from 'react'
 import LiveStatus from '../components/LiveStatus'
 import HistoricalExplorer from '../components/HistoricalExplorer'
@@ -9,8 +10,12 @@ export default function OverviewTab({ data }) {
   return (
     <>
       <LiveStatus dailySlim={data.latest || []} />
+      <LazyMount minHeight={900}>
       {data.dayIndex && <DayView index={data.dayIndex} />}
+      </LazyMount>
+      <LazyMount minHeight={760}>
       <HistoricalExplorer history={history} era1Monthly={data.era1Monthly || []} era2CorridorCorr={data.era2CorridorCorr || []} />
+      </LazyMount>
     </>
   )
 }

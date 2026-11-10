@@ -1,3 +1,4 @@
+import { LazyMount } from '../components/ui'
 import { useMemo } from 'react'
 import {
   AreaChart, Area, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Brush,
@@ -114,16 +115,23 @@ export default function ReliabilityTab({ data }) {
         </ChartBox>
       </SectionCard>
 
+      <LazyMount minHeight={440}>
       <SectionCard title="Forced outages" subtitle="Generating capacity out of service on forced (unplanned) outage, monthly average of the daily figure, by region." accent="rose">
         <RegionBars title="MW on forced outage, monthly average" cols={data.outageMonthly} unit="MW" digits={0} />
       </SectionCard>
+      </LazyMount>
 
+      <LazyMount minHeight={440}>
       <SectionCard title="Energy shortage" subtitle="Demand that could not be met, monthly average per day, by region." accent="rose">
         <RegionBars title="Energy not served (MU/day), monthly average" cols={data.shortageMonthly} unit="MU/day" digits={2} />
       </SectionCard>
+      </LazyMount>
 
+      <LazyMount minHeight={900}>
       {data.drawal && <DrawalPanel drawal={data.drawal} />}
+      </LazyMount>
 
+      <LazyMount minHeight={360}>
       <SectionCard title="Year by year" subtitle="Calendar-year averages. Days counts the days with a published report." accent="rose">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -152,6 +160,7 @@ export default function ReliabilityTab({ data }) {
           </table>
         </div>
       </SectionCard>
+      </LazyMount>
     </>
   )
 }

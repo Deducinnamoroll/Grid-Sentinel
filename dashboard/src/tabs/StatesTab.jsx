@@ -1,3 +1,4 @@
+import { LazyMount } from '../components/ui'
 import { useMemo, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Brush } from 'recharts'
 import india from '@svg-maps/india'
@@ -411,10 +412,16 @@ export default function StatesTab({ data }) {
           , recoloured. Boundaries are illustrative.
         </p>
       </SectionCard>
+      <LazyMount minHeight={760}>
       {data.regions && <RegionsPanel regions={data.regions} />}
+      </LazyMount>
       <StateTrend data={data} selected={selected} onSelect={setSelected} />
+      <LazyMount minHeight={520}>
       <StatePanel study3Latest={snapshot} />
+      </LazyMount>
+      <LazyMount minHeight={300}>
       <OtherEntities entities={data.entities} />
+      </LazyMount>
     </>
   )
 }

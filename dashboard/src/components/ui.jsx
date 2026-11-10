@@ -1,3 +1,5 @@
+import { createContext, startTransition, useContext, useEffect, useRef, useState } from 'react'
+
 export function SectionCard({ title, subtitle, children, accent = 'sky' }) {
   const accentBorder = {
     sky: 'border-sky-500/15',
@@ -143,4 +145,41 @@ export function Select({ id, label, value, onChange, options }) {
       </select>
     </div>
   )
+}
+
+// Whether the tab a component sits in is the visible one. App keeps visited
+// tabs mounted (hidden) so switching back is instant; anything that would
+// start work on its own, like LazyMount below, checks this first.
+export const TabActiveContext = createContext(true)
+
+// Renders its children only once they come near the screen, then keeps them.
+// A tab's lower sections (several charts with thousands of points each) are
+// what made switching tabs freeze; with this only what is in view is built on
+// the switch, and the rest as the reader scrolls. The placeholder keeps
+// roughly the section's height so the page does not jump.
+export function LazyMount({ children, minHeight = 420 }) {
+  const active = useContext(TabActiveContext)
+  const ref = useRef(null)
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    if (show || !active) return
+    const el = ref.current
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setShow(true)
+      return
+    }
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        // A transition: React builds the section in small slices it can pause,
+        // so scrolling stays smooth while a heavy chart is put together. The
+        // margin starts that before the section reaches the screen.
+        startTransition(() => setShow(true))
+        io.disconnect()
+      }
+    }, { rootMargin: '600px 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [show, active])
+  if (show) return children
+  return <div ref={ref} style={{ minHeight }} className="rounded-3xl border border-white/6 bg-[#0d1016]/40" aria-hidden="true" />
 }

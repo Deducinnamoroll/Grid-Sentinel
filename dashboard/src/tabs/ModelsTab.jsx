@@ -1,3 +1,4 @@
+import { LazyMount } from '../components/ui'
 import { useMemo } from 'react'
 import {
   ComposedChart, Bar, Line, BarChart, Cell, Scatter, ScatterChart, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip,
@@ -206,11 +207,22 @@ export default function ModelsTab({ data }) {
   return (
     <>
       <ForecastPanel forecast={forecast} />
+      <LazyMount minHeight={520}>
       <ForecastAccuracy forecast={forecast} />
+      </LazyMount>
+      <LazyMount minHeight={640}>
       <RegionalForecastPanel rows={data.regionalForecast || []} />
+      </LazyMount>
+      <LazyMount minHeight={560}>
       <RiskPanel risk={risk} />
+      </LazyMount>
+      <LazyMount minHeight={620}>
       <RiskCalibration calibration={data.calibration} />
+      </LazyMount>
+      <LazyMount minHeight={480}>
       <AnomalyLog forecast={forecast} risk={risk} thresholds={data.featureImportance?.thresholds} />
+      </LazyMount>
+      <LazyMount minHeight={900}>
       <ResearchFindings
         hourDowHeatmap={data.hourDowHeatmap}
         monthSeasonality={data.monthSeasonality || []}
@@ -218,6 +230,7 @@ export default function ModelsTab({ data }) {
         resShareFindings={data.resShareFindings}
         featureImportance={data.featureImportance}
       />
+      </LazyMount>
     </>
   )
 }

@@ -1,5 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { memo, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Hero from './components/Hero'
+import { TabActiveContext } from './components/ui'
 import { loadData, peekData } from './lib/data'
 
 // Each tab is its own JS chunk and its own JSON file (public/data/<id>.json),
@@ -176,9 +177,39 @@ function Skeleton() {
   )
 }
 
+// A visited tab that is not on screen: kept mounted at full width (so its
+// charts never re-measure or redraw) but with no height and not painted.
+const HIDDEN = { height: 0, overflow: 'hidden', visibility: 'hidden', contain: 'layout paint' }
+
+// A tab's content, skipped on re-render unless its component or data change.
+// Without this every switch re-rendered every kept tab's charts, which made
+// switching slower the more tabs had been visited (measured 2026-11-10).
+const TabContent = memo(function TabContent({ Component, data }) {
+  return <Component data={data} />
+})
+
 function App() {
+  // `active` drives the tab bar and updates at once; the content follows
+  // `contentId`, a deferred copy, so React builds a new tab in the background
+  // in small slices while the old one stays on screen and the highlight moves.
   const [active, setActive] = useState(tabFromHash)
-  const { shown, pending, error } = useTabView(active)
+  const contentId = useDeferredValue(active)
+  const { shown, pending: loading, error } = useTabView(contentId)
+  const pending = loading || contentId !== active
+
+  // Every tab visited stays mounted, so switching back costs nothing. Before
+  // this (measured 2026-11-10) each switch rebuilt every chart of the tab and
+  // blocked the page for 0.7 to 1.5 s.
+  const [visited, setVisited] = useState([])
+  useEffect(() => {
+    if (shown) setVisited((v) => (v.some((x) => x.id === shown.id) ? v : [...v, shown]))
+  }, [shown])
+  const views = shown && !visited.some((v) => v.id === shown.id) ? [...visited, shown] : visited
+  // Alternates the reveal animation's name so it replays on every switch.
+  const [reveal, setReveal] = useState(0)
+  useEffect(() => {
+    if (shown) setReveal((n) => n + 1)
+  }, [shown?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   const [asOf, setAsOf] = useState(null)
   const navAnchor = useRef(null)
 
@@ -230,13 +261,26 @@ function App() {
           </div>
         )}
         {!shown && !error && <Skeleton />}
-        {shown && (
-          <div
-            key={shown.id}
-            role="tabpanel"
-            className={`tab-enter flex flex-col gap-6 transition-opacity duration-200 ${pending ? 'opacity-50' : 'opacity-100'}`}
-          >
-            <shown.Component data={shown.data} />
+        {views.length > 0 && (
+          <div>
+            {views.map((v) => {
+              const on = v.id === shown?.id
+              return (
+                <TabActiveContext.Provider key={v.id} value={on}>
+                  <div
+                    role="tabpanel"
+                    aria-hidden={!on}
+                    inert={!on}
+                    style={on ? undefined : HIDDEN}
+                    className={on
+                      ? `${reveal % 2 ? 'tab-show-a' : 'tab-show-b'} flex flex-col gap-6 transition-opacity duration-200 ${pending ? 'opacity-50' : 'opacity-100'}`
+                      : 'flex flex-col gap-6'}
+                  >
+                    <TabContent Component={v.Component} data={v.data} />
+                  </div>
+                </TabActiveContext.Provider>
+              )
+            })}
           </div>
         )}
 
