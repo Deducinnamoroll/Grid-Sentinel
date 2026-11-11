@@ -7,7 +7,7 @@ import DrawalPanel from '../components/DrawalPanel'
 import { SectionCard, StatCard, StatGrid, ChartBox, ChartTooltip } from '../components/ui'
 import { AXIS, GRID, LEGEND } from '../lib/chart'
 import { zipColumns } from '../lib/data'
-import { fmtMonth, fmtNum, fmtPct, fmtMW, fmtDateShort, fmtDateLong, REGION_NAMES } from '../lib/format'
+import { fmtMonth, fmtNum, fmtPct, fmtMW, fmtDateShort, fmtDateLong, REGION_NAMES, pctTick } from '../lib/format'
 import { REGION_COLORS, CAT } from '../lib/colors'
 
 const REGIONS = ['NR', 'WR', 'SR', 'ER', 'NER']
@@ -84,7 +84,7 @@ export default function ReliabilityTab({ data }) {
               <AreaChart data={bands} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid {...GRID} />
                 <XAxis dataKey="label" {...AXIS} interval={Math.max(0, Math.floor(bands.length / 9))} />
-                <YAxis {...AXIS} domain={[0, 100]} tickFormatter={(v) => v + '%'} width={40} />
+                <YAxis {...AXIS} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} allowDataOverflow tickFormatter={pctTick} width={40} />
                 <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(1) + '%'} />} />
                 <Legend {...LEGEND} />
                 <Area type="monotone" dataKey="Below 49.9 Hz" stackId="f" stroke={CAT[4]} fill={CAT[4]} fillOpacity={0.55} isAnimationActive={false} />

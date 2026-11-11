@@ -3,7 +3,7 @@ import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Respons
 import { SectionCard, ChartBox, ChartTooltip } from './ui'
 import { AXIS, GRID, LEGEND } from '../lib/chart'
 import { zipColumns } from '../lib/data'
-import { fmtMonth, fmtNum } from '../lib/format'
+import { fmtMonth, fmtNum, pctTick } from '../lib/format'
 
 const kTick = (v) => Math.round(v / 1000) + 'k'
 
@@ -68,7 +68,7 @@ export default function PeakTimingPanel({ timing }) {
               <CartesianGrid {...GRID} />
               <XAxis dataKey="label" {...AXIS} interval={Math.max(0, Math.floor(rows.length / 9))} />
               <YAxis yAxisId="mw" {...AXIS} tickFormatter={kTick} width={44} domain={['auto', 'auto']} />
-              <YAxis yAxisId="pct" orientation="right" {...AXIS} domain={[0, 100]} tickFormatter={(v) => v + '%'} width={40} />
+              <YAxis yAxisId="pct" orientation="right" {...AXIS} domain={[0, 100]} tickFormatter={pctTick} width={40} />
               <Tooltip content={<ChartTooltip formatter={fmt} />} />
               <Legend {...LEGEND} />
               <Bar yAxisId="pct" dataKey="Days the solar-hour peak was higher (%)" fill="rgba(251,191,36,0.18)" isAnimationActive={false} />

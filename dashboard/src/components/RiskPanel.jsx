@@ -1,3 +1,4 @@
+import { pctTick } from '../lib/format'
 import { useMemo, useState } from 'react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { SectionCard, StatCard, StatGrid, Empty, ChartTooltip } from './ui'
@@ -103,7 +104,7 @@ export default function RiskPanel({ risk }) {
               tick={{ fill: '#64748b', fontSize: 11 }}
               interval={11}
             />
-            <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={(v) => v + '%'} width={40} />
+            <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={pctTick} width={40} />
             <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(1) + '%'} />} />
             <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
             <Area type="monotone" dataKey="Violation risk" stroke="#fb7185" strokeWidth={2} fill="url(#violGrad)" />

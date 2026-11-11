@@ -4,7 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine, Brush,
 } from 'recharts'
 import { SectionCard, Empty, ChartTooltip } from './ui'
-import { fmtDateShort, index0to100, shortCorridorName } from '../lib/format'
+import { fmtDateShort, index0to100, shortCorridorName, pctTick } from '../lib/format'
 
 const TABS = [
   { id: 'overview', label: 'Full history (2019–present)' },
@@ -67,7 +67,7 @@ function FullHistory({ history }) {
               </defs>
               <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
               <XAxis dataKey="date" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} interval={Math.floor(resData.length / 8)} />
-              <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={(v) => v + '%'} width={40} />
+              <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={pctTick} width={40} />
               <Tooltip content={<ChartTooltip formatter={(v) => (v === null ? 'N/A' : v.toFixed(1) + '%')} />} />
               <Area type="monotone" dataKey="RES share" stroke="#fbbf24" strokeWidth={1.5} fill="url(#resHistGrad)" dot={false} isAnimationActive={false} />
               <Brush

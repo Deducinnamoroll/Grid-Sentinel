@@ -7,7 +7,7 @@ import PeakTimingPanel from '../components/PeakTimingPanel'
 import { SectionCard, StatCard, StatGrid, ChartBox, Select, Empty, ChartTooltip } from '../components/ui'
 import { AXIS, GRID, LEGEND } from '../lib/chart'
 import { zipColumns } from '../lib/data'
-import { fmtMonth, fmtNum, fmtPct, fmtMW, fmtDateLong, REGION_NAMES } from '../lib/format'
+import { fmtMonth, fmtNum, fmtPct, fmtMW, fmtDateLong, REGION_NAMES, pctTick } from '../lib/format'
 import { SOURCE_COLORS, CAT } from '../lib/colors'
 
 const kTick = (v) => (Math.abs(v) >= 1000 ? Math.round(v / 1000) + 'k' : v)
@@ -143,7 +143,7 @@ export default function RenewablesTab({ data }) {
                 <LineChart data={monthly} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                   <CartesianGrid {...GRID} />
                   <XAxis dataKey="label" {...AXIS} interval={Math.max(0, Math.floor(monthly.length / 5))} />
-                  <YAxis {...AXIS} tickFormatter={(v) => v + '%'} width={40} />
+                  <YAxis {...AXIS} tickFormatter={pctTick} width={40} />
                   <Tooltip content={<ChartTooltip formatter={(v) => (v === null ? 'N/A' : v.toFixed(1) + '%')} />} />
                   <Legend {...LEGEND} />
                   <Line type="monotone" dataKey="nonFossilShare" name="Non-fossil (RES + hydro + nuclear)" stroke={CAT[3]} strokeWidth={2} dot={false} isAnimationActive={false} />

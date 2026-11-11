@@ -12,7 +12,7 @@ import RegionalForecastPanel from '../components/RegionalForecastPanel'
 import { SectionCard, StatCard, StatGrid, ChartBox, Empty, ChartTooltip } from '../components/ui'
 import { AXIS, GRID, LEGEND } from '../lib/chart'
 import { expandRisk } from '../lib/data'
-import { fmtDateShort, fmtDateLong, fmtNum } from '../lib/format'
+import { fmtDateShort, fmtDateLong, fmtNum, pctTick } from '../lib/format'
 
 function ForecastAccuracy({ forecast }) {
   const rows = useMemo(() => {
@@ -69,7 +69,7 @@ function ForecastAccuracy({ forecast }) {
               <ComposedChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid {...GRID} />
                 <XAxis dataKey="date" {...AXIS} tickFormatter={fmtDateShort} minTickGap={40} />
-                <YAxis {...AXIS} tickFormatter={(v) => v + '%'} width={40} />
+                <YAxis {...AXIS} tickFormatter={pctTick} width={40} />
                 <ReferenceLine y={0} stroke="rgba(255,255,255,0.3)" />
                 <Tooltip content={<ChartTooltip formatter={(v) => (v === null ? 'N/A' : v.toFixed(2) + '%')} />} labelFormatter={fmtDateLong} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
                 <Legend {...LEGEND} />
@@ -135,10 +135,10 @@ function ReliabilityDiagram({ title, cal, color }) {
               name="Predicted"
               domain={[0, max]}
               {...AXIS}
-              tickFormatter={(v) => v + '%'}
+              tickFormatter={pctTick}
               label={{ value: 'Predicted risk', position: 'insideBottom', offset: -10, fill: '#64748b', fontSize: 11 }}
             />
-            <YAxis type="number" dataKey="observed" name="Observed" domain={[0, max]} {...AXIS} tickFormatter={(v) => v + '%'} width={40} />
+            <YAxis type="number" dataKey="observed" name="Observed" domain={[0, max]} {...AXIS} tickFormatter={pctTick} width={40} />
             <ZAxis range={[90, 90]} />
             <ReferenceLine
               segment={[

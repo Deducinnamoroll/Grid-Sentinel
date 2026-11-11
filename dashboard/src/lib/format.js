@@ -44,3 +44,9 @@ export function fmtMU(v, digits = 0) {
 }
 
 export const REGION_NAMES = { NR: 'Northern', WR: 'Western', SR: 'Southern', ER: 'Eastern', NER: 'North-Eastern' }
+
+// Percentage axis tick. A raw `v + '%'` printed float noise such as
+// "100.00200000000001%" when stacked monthly averages summed just over 100.
+export function pctTick(v) {
+  return `${Number(Number(v).toFixed(1))}%`
+}

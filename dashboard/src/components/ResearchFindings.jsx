@@ -1,3 +1,4 @@
+import { pctTick } from '../lib/format'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts'
 import { SectionCard } from './ui'
 import { ChartTooltip } from './ui'
@@ -17,7 +18,7 @@ function MonthSeasonality({ monthSeasonality }) {
             <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
               <XAxis dataKey="month" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} />
-              <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={(v) => v + '%'} width={34} />
+              <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={pctTick} width={34} />
               <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(2) + '%'} />} />
               <Bar dataKey="violation" radius={2}>
                 {data.map((_, i) => <Cell key={i} fill="#fb7185" fillOpacity={0.5 + (0.5 * data[i].violation) / Math.max(...data.map((d) => d.violation))} />)}
@@ -33,7 +34,7 @@ function MonthSeasonality({ monthSeasonality }) {
             <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
               <XAxis dataKey="month" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} />
-              <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={(v) => v + '%'} width={34} />
+              <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={pctTick} width={34} />
               <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(2) + '%'} />} />
               <Bar dataKey="ramp" radius={2}>
                 {data.map((_, i) => <Cell key={i} fill="#38bdf8" fillOpacity={0.5 + (0.5 * data[i].ramp) / Math.max(...data.map((d) => d.ramp))} />)}
@@ -59,7 +60,7 @@ function SolarHourRates({ solarHourRates }) {
           <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
             <XAxis dataKey="label" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 11 }} />
-            <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={(v) => v + '%'} width={34} />
+            <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={pctTick} width={34} />
             <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(2) + '%'} />} />
             <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
             <Bar dataKey="violation" name="Violation rate" fill="#fb7185" radius={2} />
@@ -84,7 +85,7 @@ function ResShareViolation({ pooledViolationByResShare }) {
           <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
             <XAxis dataKey="quintile" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} />
-            <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={(v) => v + '%'} width={34} />
+            <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={pctTick} width={34} />
             <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(2) + '%'} />} />
             <Bar dataKey="violation" radius={3}>
               {data.map((d, i) => <Cell key={i} fill="#fb7185" fillOpacity={0.35 + 0.65 * (d.violation / max)} />)}
@@ -108,7 +109,7 @@ function RampReversal({ rampReversal }) {
           <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
             <XAxis dataKey="quintile" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} />
-            <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={(v) => v + '%'} width={34} />
+            <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={pctTick} width={34} />
             <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(2) + '%'} />} />
             <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
             <Bar dataKey="Pooled" fill="#9085e9" radius={2} />
