@@ -273,7 +273,7 @@ function App() {
                     inert={!on}
                     style={on ? undefined : HIDDEN}
                     className={on
-                      ? `${reveal % 2 ? 'tab-show-a' : 'tab-show-b'} flex flex-col gap-6 transition-opacity duration-200 ${pending ? 'opacity-50' : 'opacity-100'}`
+                      ? `${reveal % 2 ? 'tab-show-a' : 'tab-show-b'} flex flex-col gap-6 ${pending ? 'tab-dim' : 'tab-lit'}`
                       : 'flex flex-col gap-6'}
                   >
                     <TabContent Component={v.Component} data={v.data} />

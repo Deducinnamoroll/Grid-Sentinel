@@ -180,6 +180,6 @@ export function LazyMount({ children, minHeight = 420 }) {
     io.observe(el)
     return () => io.disconnect()
   }, [show, active])
-  if (show) return children
+  if (show) return <div className="lazy-in">{children}</div>
   return <div ref={ref} style={{ minHeight }} className="rounded-3xl border border-white/6 bg-[#0d1016]/40" aria-hidden="true" />
 }

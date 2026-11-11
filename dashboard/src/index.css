@@ -15,8 +15,8 @@ body {
 /* Tab bar: one highlight that glides to the selected tab. */
 .tab-pill {
   transition:
-    transform 380ms cubic-bezier(0.22, 1, 0.36, 1),
-    width 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 320ms cubic-bezier(0.22, 1, 0.36, 1),
     background-color 300ms ease,
     box-shadow 300ms ease;
 }
@@ -30,21 +30,36 @@ body {
   to { transform: translateX(300%); }
 }
 
-/* The shown tab rises in. Two identical animations whose names alternate on
-   every switch, so it replays even for a tab that was kept mounted. Fill mode
-   "backwards" applies only before it starts, so once it ends the dimming
-   class (opacity-50 while the next tab builds) takes effect again. */
-.tab-show-a { animation: tab-show-a 280ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
-.tab-show-b { animation: tab-show-b 280ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
-@keyframes tab-show-a { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-@keyframes tab-show-b { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* The shown tab settles in. It starts at 35% opacity, not 0: starting from 0
+   left a blank frame on every switch while the browser was still laying out
+   the charts, which read as a flicker. Same duration and easing as the tab
+   highlight so the two move together. Two identical animations whose names
+   alternate on every switch, so it replays even for a tab kept mounted. Fill
+   mode "backwards" applies only before it starts, so once it ends the
+   dimming class takes effect again. */
+.tab-show-a { animation: tab-show-a 320ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.tab-show-b { animation: tab-show-b 320ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+@keyframes tab-show-a { from { opacity: 0.35; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes tab-show-b { from { opacity: 0.35; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* While the next tab builds, the current one dims, but only if that takes
+   longer than 150 ms, so a quick switch does not flash dim and back. */
+.tab-dim { opacity: 0.55; transition: opacity 200ms ease 150ms; }
+.tab-lit { opacity: 1; transition: opacity 200ms ease; }
+
+/* A section built as it nears the screen fades up instead of popping into
+   its placeholder. */
+.lazy-in { animation: lazy-in 360ms ease-out backwards; }
+@keyframes lazy-in { from { opacity: 0.35; } to { opacity: 1; } }
 
 .fade-in {
-  animation: fade-in 500ms ease-out both;
+  animation: fade-in 400ms ease-out both;
 }
+/* Opacity only: a downward slide here moved against the tab content rising
+   in on first load. */
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* First-load placeholders: a soft light sweeps across. */
@@ -63,6 +78,9 @@ body {
   .tab-progress,
   .tab-show-a,
   .tab-show-b,
+  .lazy-in,
+  .tab-dim,
+  .tab-lit,
   .fade-in,
   .skeleton {
     animation: none !important;
