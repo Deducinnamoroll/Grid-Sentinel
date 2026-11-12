@@ -1,0 +1,32 @@
+name: Parser tests
+
+# Runs tests/ (one real report per NLDC format era, parsed and compared with
+# the committed datasets) whenever parser code changes. Added 2026-11-12.
+# See Pipeline/docs/tests_notes.md.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Scrapings/**'
+      - 'Pipeline/study2_io.py'
+      - 'tests/**'
+      - '.github/workflows/tests.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pandas openpyxl pdfplumber requests urllib3 xlrd pytest
+
+      - name: Run parser tests
+        run: python -m pytest tests -q

@@ -105,7 +105,7 @@ def append_study1(raw_file: Path) -> bool:
         return False
 
     row_date = str(row["date"])
-    existing = pd.read_csv(STUDY1_CSV)
+    existing = pd.read_csv(STUDY1_CSV, float_precision="round_trip")  # exact digits: the whole file is rewritten
     # NOTE: dates in this file are already clean ISO (YYYY-MM-DD). Do NOT use
     # dayfirst=True with format="mixed" here -- on pandas 3.x this misparses
     # valid ISO strings (e.g. "2026-06-12" silently becomes "2026-12-06").
@@ -154,7 +154,7 @@ def append_study3(raw_file: Path) -> bool:
         return False
 
     row_date = str(rows[0]["date"])
-    existing = pd.read_csv(STUDY3_CSV)
+    existing = pd.read_csv(STUDY3_CSV, float_precision="round_trip")
     existing["date"] = pd.to_datetime(existing["date"], format="%Y-%m-%d").dt.strftime("%Y-%m-%d")
 
     if row_date in existing["date"].values:
