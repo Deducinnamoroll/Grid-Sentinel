@@ -304,3 +304,27 @@ def scale_pos_weight(y: pd.Series) -> float:
     pos = y.sum()
     neg = len(y) - pos
     return float(neg / pos) if pos > 0 else 1.0
+
+
+def fit_platt(p_val, y_val):
+    """Platt scaling: a logistic curve on the log-odds of held-out
+    probabilities, returned as a function mapping raw -> calibrated. Added
+    2026-11-12: the raw LightGBM probabilities were too low as the base rate
+    rose (Oct 2026: violations in 9.1% of slots, mean predicted 3.9%). Fitted
+    on each daily model's own early-stopping holdout (its last 45 days), it
+    cut the Brier score from 0.0555 to 0.0531 (violation) and 0.0852 to
+    0.0767 (ramp) over 2026-07-09 to 2026-11-11, with AUC and average
+    precision slightly up. Isotonic regression was close but worse on both.
+    Monotonic, so it never reorders slots within a day."""
+    import numpy as np
+    from sklearn.linear_model import LogisticRegression
+
+    def logit(p):
+        p = np.clip(np.asarray(p, dtype=float), 1e-6, 1 - 1e-6)
+        return np.log(p / (1 - p)).reshape(-1, 1)
+
+    y = np.asarray(y_val).astype(int)
+    if y.min() == y.max():  # one class only: nothing to fit, leave as is
+        return lambda p: np.asarray(p, dtype=float)
+    model = LogisticRegression(C=1e6).fit(logit(p_val), y)
+    return lambda p: model.predict_proba(logit(p))[:, 1]

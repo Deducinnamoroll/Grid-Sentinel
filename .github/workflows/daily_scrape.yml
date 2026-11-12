@@ -137,6 +137,16 @@ jobs:
         run: python ML/Study1/predict_regional.py ${BACKFILL_FROM:+--from "$BACKFILL_FROM"}
         continue-on-error: true
 
+      # ── 5a2. State peak forecasts (added 2026-11-12) ───────────────────────
+      # One model per state/UT (about 33, 1 to 2 minutes); logs to
+      # Dataset/predictions/state_forecast.csv. See ML/Study1/predict_states.py.
+      - name: Run state forecasts
+        if: steps.outcome.outputs.changed == 'true'
+        env:
+          BACKFILL_FROM: ${{ github.event.inputs.backfill_from }}
+        run: python ML/Study1/predict_states.py ${BACKFILL_FROM:+--from "$BACKFILL_FROM"}
+        continue-on-error: true
+
       # ── 5b. Study 2 risk timeline (violation + ramp-shock, 1-4-slot lead) ──
       # Same retrain-fresh rationale as Study 1's forecast step. Trains on all days
       # strictly before the latest complete day in study2_scada.csv (never on the
@@ -175,6 +185,7 @@ jobs:
           git add Dataset/study1_daily.csv Dataset/study2_scada.csv Dataset/study3_states.csv \
                   Dataset/predictions/study1_forecast.csv Dataset/predictions/study2_risk.csv \
                   Dataset/predictions/study1_regional_forecast.csv \
+                  Dataset/predictions/state_forecast.csv \
                   Dataset/Raw/File2_Raw/ Dataset/Raw/File3_Raw/ \
                   dashboard/public/data/
           git commit -m "chore: daily PSP update $(date -u +%Y-%m-%d)"

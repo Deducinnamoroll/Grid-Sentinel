@@ -294,7 +294,10 @@ def build_feature_importance(study2_f):
         precision_val, recall_val, thresh_val = precision_recall_curve(val[target], proba_val)
         f1s_val = 2 * precision_val * recall_val / (precision_val + recall_val + 1e-12)
         best_idx_val = np.nanargmax(f1s_val[:-1])
-        best_threshold = float(thresh_val[best_idx_val])
+        # The live risk log holds Platt-calibrated probabilities (since
+        # 2026-11-12), so express the threshold on that scale: Platt is
+        # monotonic, so this is the same VAL-selected cut point.
+        best_threshold = float(study2_f.fit_platt(proba_val, val[target])([thresh_val[best_idx_val]])[0])
 
         return imp, best_threshold
 
@@ -667,6 +670,59 @@ def build_regions(daily):
     }
 
 
+# --- State forecasts (States tab, added 2026-11-12) ---------------------------
+
+def build_state_forecast(recent_days=90):
+    """Per state: the latest forecast, live accuracy of the logged forecasts
+    against two naive baselines read from the data (repeat the latest known
+    day; the same weekday a week before the target), and the last
+    `recent_days` target days of forecast vs actual. In the 2026 backtest the
+    model beat both baselines in 22 of 33 states and was level with repeating
+    the latest day in most of the rest, so both are shown per state.
+    From Dataset/predictions/state_forecast.csv (ML/Study1/predict_states.py)."""
+    path = DATASET_DIR / "predictions" / "state_forecast.csv"
+    if not path.exists():
+        return {}
+    log = pd.read_csv(path, parse_dates=["target_date", "prediction_made_date"])
+    s3 = pd.read_csv(DATASET_DIR / "study3_states.csv", parse_dates=["date"])
+    s3["state"] = s3["state"].replace(STATE_RENAME)
+    wide = s3.groupby(["date", "state"])["max_demand_met_mw"].sum(min_count=1).unstack("state")
+    out = {}
+    for state, g in log.groupby("state"):
+        g = g.sort_values("target_date")
+        latest = g.iloc[-1]
+        sc = g.dropna(subset=["actual_mw"])
+        sc = sc[sc["actual_mw"] > 0]
+        col = wide[state] if state in wide else pd.Series(dtype=float)
+
+        def naive_mape(values):
+            ok = values.notna()
+            if not ok.any():
+                return None
+            return _fnum(((values[ok] - sc.loc[ok, "actual_mw"]).abs() / sc.loc[ok, "actual_mw"]).mean() * 100, 2)
+
+        live = None
+        if len(sc):
+            live = {
+                "n": int(len(sc)),
+                "mape": _fnum((sc["residual_mw"].abs() / sc["actual_mw"]).mean() * 100, 2),
+                "latestDayMape": naive_mape(sc["prediction_made_date"].map(lambda t: col.get(t))),
+                "lastWeekMape": naive_mape(sc["target_date"].map(lambda t: col.get(t - pd.Timedelta(days=7)))),
+                "from": sc["target_date"].min().strftime("%Y-%m-%d"),
+            }
+        r = g[g["target_date"] > g["target_date"].max() - pd.Timedelta(days=recent_days)]
+        out[state] = {
+            "latest": {"target": latest["target_date"].strftime("%Y-%m-%d"), "predicted": _fnum(latest["predicted_mw"], 0)},
+            "live": live,
+            "recent": {
+                "date": r["target_date"].dt.strftime("%Y-%m-%d").tolist(),
+                "forecast": [_fnum(v, 0) for v in r["predicted_mw"]],
+                "actual": [_fnum(v, 0) for v in r["actual_mw"]],
+            },
+        }
+    return out
+
+
 # --- Over/under-drawal (Reliability tab, added 2026-11-10) --------------------
 
 def build_drawal(daily):
@@ -873,7 +929,7 @@ if __name__ == "__main__":
     daily = _load_daily()
 
     _write("overview", {**build_overview(daily), "dayIndex": build_day_files(era3_df)})
-    _write("states", {**build_states(), "regions": build_regions(daily)})
+    _write("states", {**build_states(), "regions": build_regions(daily), "stateForecast": build_state_forecast()})
     _write("flows", build_flows(daily))
     _write("renewables", {**build_renewables(daily, era3_df), "peakTiming": build_peak_timing(daily, era3_df)})
     _write("reliability", {**build_reliability(daily), "drawal": build_drawal(daily)})

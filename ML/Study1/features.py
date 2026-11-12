@@ -65,31 +65,34 @@ class HolidayCorrection:
         years = range(series.index.min().year - 1, series.index.max().year + 3)
         self.hol = {pd.Timestamp(d): n for d, n in holidays.India(years=years).items()}
         self.diwalis = sorted(d for d, n in self.hol.items() if "Diwali" in n)
+        # Every keyed day, built once (about 20 a year). Looking keys up here,
+        # instead of testing each of the ~2,800 days in the series, took the
+        # constructor from about 2.3 s to a few ms (2026-11-12), which matters
+        # with one correction per state per day. Diwali window first, so it wins
+        # over a holiday on the same day, as before.
+        lo, hi = self.DIWALI_WINDOW
+        self._keys = {}
+        for d in self.diwalis:
+            for k in range(lo, hi + 1):
+                self._keys.setdefault(d + pd.Timedelta(days=k), f"diwali{k:+d}")
+        for t, name in self.hol.items():
+            if t not in self._keys:
+                fest = next((f for f in ("Holi", "Dussehra") if f in name), None)
+                self._keys[t] = fest or name.split("; ")[0].split(" (")[0]
         rows = []
-        for t, v in series.dropna().items():
-            k = self.key(t)
-            if not k or t.year in self.EXCLUDE_YEARS:
+        valid = series.dropna()
+        for t in sorted(self._keys):
+            if t not in valid.index or t.year in self.EXCLUDE_YEARS:
                 continue
             refs = [t + pd.Timedelta(days=j) for j in (-14, -7, 7, 14)]
-            refs = [x for x in refs if x in series.index and self.key(x) is None]
+            refs = [x for x in refs if x in series.index and x not in self._keys]
             ref_vals = series.reindex(refs).dropna()
             if len(ref_vals) >= 2:
-                rows.append((k, t, v / ref_vals.mean() - 1))
+                rows.append((self._keys[t], t, valid[t] / ref_vals.mean() - 1))
         self.occ = pd.DataFrame(rows, columns=["key", "t", "eff"])
 
     def key(self, t):
-        lo, hi = self.DIWALI_WINDOW
-        for d in self.diwalis:
-            k = (t - d).days
-            if lo <= k <= hi:
-                return f"diwali{k:+d}"
-        name = self.hol.get(t)
-        if not name:
-            return None
-        for f in ("Holi", "Dussehra"):
-            if f in name:
-                return f
-        return name.split("; ")[0].split(" (")[0]
+        return self._keys.get(pd.Timestamp(t))
 
     def expected(self, t, made) -> float:
         k = self.key(t)

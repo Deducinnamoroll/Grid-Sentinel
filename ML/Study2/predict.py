@@ -51,7 +51,7 @@ import lightgbm as lgb
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from features import build_feature_table, build_study1_residual_signal, FEATURE_COLS  # noqa: E402
+from features import build_feature_table, build_study1_residual_signal, fit_platt, FEATURE_COLS  # noqa: E402
 
 # study2_scada.csv is stored slim; load_study2() re-joins study1_daily's columns.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "Pipeline"))
@@ -122,7 +122,10 @@ def train_and_predict_day(feat_df: pd.DataFrame, target_day: pd.Timestamp):
             eval_metric="average_precision",
             callbacks=[lgb.early_stopping(50, verbose=False)],
         )
-        results[out_col] = model.predict_proba(target_rows[FEATURE_COLS])[:, 1]
+        # Calibrated on this model's own holdout (the last VAL_DAYS days), so the
+        # stated risk tracks the recent event rate. See fit_platt in features.py.
+        calibrate = fit_platt(model.predict_proba(val[FEATURE_COLS])[:, 1], val[label_col])
+        results[out_col] = calibrate(model.predict_proba(target_rows[FEATURE_COLS])[:, 1])
 
     out = target_rows[["date", "time"]].copy()
     out["violation_prob"] = results["violation_prob"]
@@ -213,6 +216,10 @@ def main():
     log = _backfill_actuals(log, feat_df)
 
     log = log.sort_values(["date", "time"]).reset_index(drop=True)
+    # Rows appended to an empty log are Timestamps in an object column, which
+    # to_csv writes as "YYYY-MM-DD 00:00:00" (seen 2026-11-12 when the log was
+    # rebuilt from empty). Always write bare dates, as Study 1's log does.
+    log["date"] = pd.to_datetime(log["date"]).dt.strftime("%Y-%m-%d")
     RISK_LOG.parent.mkdir(parents=True, exist_ok=True)
     log.to_csv(RISK_LOG, index=False)
 

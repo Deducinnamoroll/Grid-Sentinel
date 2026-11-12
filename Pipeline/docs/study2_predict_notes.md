@@ -71,3 +71,22 @@ python ML/Study2/predict.py --from 2026-09-30    # every day from there to the l
 The daily run only ever predicts the latest day, so any day CI missed (the 2026-09-30 to 2026-11-05 outage) is simply absent from the log and from the dashboard's "Day" dropdown. `--from/--to/--date` fill those in. A backfilled day must be what the live run would have output that day, so it is not allowed to see the future: the scada table is cut at the target day (the last training day's trailing lead labels stay unresolved, as they are live) and Study 1's residual signal is masked from the target day onward (the residual at date d needs day d+1's actual demand). Verified by re-deriving 2026-09-29, which CI logged live: max absolute difference 0.000000 on all 96 slots for both models. Study 1's residual signal and the full feature table are built once per run and reused, so each extra day costs only a few seconds (3 days took 23 seconds total locally, including the one-off setup).
 
 Depends on `pandas`, `numpy`, `lightgbm` (already in CI's pip install list, added when Study 1's `predict.py` was wired in).
+
+## Calibration (added 2026-11-12)
+
+The raw LightGBM probabilities ran low once the event rates rose in autumn 2026 (October: violations in 9.1% of slots, mean predicted 3.9%; ramp shocks 21.1%, mean predicted 11.5%). Each day's two classifiers are now Platt-calibrated: a logistic curve on the log-odds of the model's own early-stopping holdout (its last `VAL_DAYS` = 45 days), applied to the target day's probabilities (`fit_platt` in `ML/Study2/features.py`). It is monotonic, so it never reorders slots within a day.
+
+Backtest over 2026-07-09 to 2026-11-11 (126 target days, the live code path, one model per day). The decision rule, fixed before running: lowest Brier score, provided AUC and average precision do not drop by more than 0.01.
+
+| | Brier | log loss | AUC | AP |
+|---|---:|---:|---:|---:|
+| Violation, raw | 0.0555 | 0.212 | 0.809 | 0.329 |
+| Violation, Platt (shipped) | **0.0531** | 0.198 | 0.814 | 0.334 |
+| Violation, isotonic | 0.0533 | 0.202 | 0.812 | 0.327 |
+| Ramp, raw | 0.0852 | 0.282 | 0.884 | 0.600 |
+| Ramp, Platt (shipped) | **0.0767** | 0.257 | 0.891 | 0.636 |
+| Ramp, isotonic | 0.0772 | 0.259 | 0.890 | 0.634 |
+
+Monthly mean predicted vs observed, violation: Sep 6.2% vs 9.1% (raw 4.3%), Oct 8.2% vs 9.1% (raw 3.9%). AUC and AP rise slightly because each day gets its own calibration, which improves the ranking across days.
+
+`study2_risk.csv` was rebuilt over its whole period with the calibrated code (`python ML/Study2/predict.py --from 2026-07-09` on an emptied log) so the dashboard's calibration chart does not mix raw and calibrated rows. The dashboard's flagging thresholds (best F1 on the 2025-H2 validation model) are mapped through that model's own Platt curve, so they sit on the same scale as the log.

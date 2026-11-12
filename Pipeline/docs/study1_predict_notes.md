@@ -122,3 +122,18 @@ Walk-forward backtest, targets 2024-01-01 to 2026-11-08, 1,039 forecasts per reg
 | National (same run) | 2.33 | 3.13 | 3.80 |
 
 The model beats both baselines everywhere; the margin is thin for ER and NER is the hardest region (smallest, most volatile). The dashboard's Models tab shows these backtest numbers next to the live MAPE from the log.
+
+## State forecasts: `predict_states.py` (added 2026-11-12)
+
+`ML/Study1/predict_states.py` forecasts each state's and UT's daily peak (`study3_states.max_demand_met_mw`) two days ahead with the national setup, through `predict.train_and_predict(target_col=...)`, holiday correction included (computed from each state's own history). It uses the dashboard's state names (`STATE_RENAME` and `_is_state` from `Pipeline/build_dashboard_data.py`; DD, DNH and DNHDDPDCL summed as "DNH and DD") and skips bulk consumers and DVC: 33 series. Log: `Dataset/predictions/state_forecast.csv`, one row per state per target day, same `--date`, `--from`, `--to` options; backfilled from 2026-09-12. CI runs it as step 5a2 (about 33 fits, roughly a minute on the runner).
+
+Walk-forward backtest, targets 2026-01-01 to 2026-11-11, weekly retrain, holiday correction on, against two naive baselines (repeat the made day's value; the same weekday one week before the target):
+
+| | Model | Repeat latest day | Same weekday last week |
+|---|---:|---:|---:|
+| Median APE, all states | 3.56 | 4.00 | 4.87 |
+| Mean APE, all states | 5.16 | 5.96 | 7.20 |
+
+By state (median APE), the model beats both baselines in 22 of 33, clearly so in Delhi (4.5 vs 5.6 and 8.8), Haryana, Chandigarh, Tamil Nadu, Goa and Sikkim. In the other 11 (Bihar, Punjab, Jharkhand, Andhra Pradesh, Madhya Pradesh, J&K and Ladakh, and several small NER states) it is level with or slightly behind simply repeating the latest day. The dashboard therefore shows each state's live error next to both baselines rather than claiming the model is better everywhere.
+
+**Speed-up, same output:** `HolidayCorrection` used to test every day of the series (about 2,800) for a holiday key, about 2.3 s per construction, which mattered with 33 states per run. It now builds the roughly 20 keyed days a year once and looks them up; the constructor takes about 0.3 s. Keys and factors were checked identical on all 1,778 days from 2022-01-01 to 2026-11-13.

@@ -64,8 +64,9 @@ Grid-Sentinel is an independent student project. It is **not affiliated with NLD
 ### Models
 - Next-day demand forecast against actuals, daily error and a trailing 7-day MAPE
 - Peak forecasts for each of the five regions, with live and backtest accuracy against naive baselines
+- Peak forecasts for each of 33 states and UTs, shown under the state trend with live error next to two naive baselines
 - Holiday correction for the forecast: scales it by the dip the same holiday showed in past years, which cut festival-day error from 12.2% to 2.9% in a 2022 to 2026 backtest
-- 96-slot risk timelines for frequency violations and ramp shocks, with a calibration check that shows whether the stated risk is honest
+- 96-slot risk timelines for frequency violations and ramp shocks, calibrated daily so the stated risk matches observed rates, with a calibration check that shows whether it is honest
 
 ### Pipeline
 - Four datasets updated daily, validated on every append and published to Kaggle with per-column descriptions
@@ -195,8 +196,10 @@ The workflow needs three repository secrets: `KAGGLE_USERNAME`, `KAGGLE_KEY` and
 
 ## Validation
 
-There is no unit-test suite. Correctness is checked on the data itself:
+Correctness is checked in code and on the data itself:
 
+- `tests/` (pytest, run in CI on every parser change): one real NLDC report per format era, from 2019 PDFs to the current layout, is parsed and compared with the committed datasets, and a day is re-appended to copies of the datasets and must come back byte-identical
+- `Scrapings/report_guard.py` flags any new report label or sheet, and any column that goes empty or to zero, on the day it happens
 - `update_live.py` validates each append (duplicate dates and keys, null-rate jumps) and refuses to commit on failure
 - `Pipeline/validate.py` runs the full checks after a rebuild, against the known-gap list in `Pipeline/known_gaps.json`
 - The incremental append path was verified byte-identical to a full rebuild for all three daily datasets
@@ -208,7 +211,7 @@ There is no unit-test suite. Correctness is checked on the data itself:
 
 - **New data depends on one PC being on.** The scheduler catches up the last 7 days when it next runs, but a longer outage needs a manual run.
 - **Not real time.** NLDC publishes each day's report the following afternoon, so the dashboard is at least a day behind.
-- **The frequency-violation classifier is modest** (PR-AUC 0.154) and under-predicts: in Sep and Oct 2026, violations occurred in about 9% of slots against an average predicted risk of about 4%.
+- **The frequency-violation classifier is modest** (PR-AUC 0.154 offline). Its stated risk used to run at about half the real rate as violations rose in autumn 2026; since 2026-11-12 both risk scores are calibrated daily on the last 45 days, which brought October's average predicted violation risk from 3.9% to 8.2% against 9.1% observed. A sudden change in the event rate still takes a few weeks to show up in the calibration.
 - **Holidays come from the central gazetted list.** Regional festivals such as Ganesh Chaturthi, Pongal or Onam get no forecast correction, and the day after a holiday is still the hardest to forecast.
 - **Source gaps.** `study1_daily` and `study1_hourly` have 69 root-caused missing dates (mostly duplicate NLDC republishes in 2020, plus a few archive gaps). `study2_scada` has 17 dates with no rows (PDF-only days) and 3 corrupted days dropped before training.
 - **Coverage varies by era.** Inter-regional line and cross-border columns exist only from about 2023, and the hourly load source ends in April 2024.
@@ -218,9 +221,11 @@ There is no unit-test suite. Correctness is checked on the data itself:
 
 ## Suggested Future Features
 
-- [ ] Recalibrate the frequency-violation risk score so its stated probability matches observed rates
-- [ ] State-level demand forecasts from `study3_states`
-- [ ] A small unit-test suite for the parsers, with one fixture report per format era
+- [x] Recalibrate the frequency-violation risk score so its stated probability matches observed rates (2026-11-12)
+- [x] State-level demand forecasts from `study3_states` (2026-11-12)
+- [x] A small unit-test suite for the parsers, with one fixture report per format era (2026-11-12)
+- [ ] Regional festival calendars (Ganesh Chaturthi, Pongal, Onam, Durga Puja) for the regional and state holiday corrections
+- [ ] Check and tune the dashboard layout on phones
 
 ---
 

@@ -250,6 +250,52 @@ const TREND_METRICS = [
   { id: 'shortage', label: 'Energy shortage (MU/day)', fmt: (v) => fmtNum(v, 3) + ' MU/day', tick: (v) => v },
 ]
 
+// The selected state's peak-demand forecast (ML/Study1/predict_states.py):
+// next forecast, live accuracy against a same-weekday-last-week baseline, and
+// the last 90 days of forecast vs actual.
+function StateForecast({ fc, state, color }) {
+  const rows = useMemo(
+    () => (fc ? fc.recent.date.map((d, i) => ({ date: d, Forecast: fc.recent.forecast[i], Actual: fc.recent.actual[i] })) : []),
+    [fc],
+  )
+  if (!fc) return null
+  const day = (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+  const live = fc.live
+  const baselines = live ? [live.latestDayMape, live.lastWeekMape].filter((v) => v !== null) : []
+  const better = baselines.length > 0 && live.mape < Math.min(...baselines)
+  return (
+    <ChartBox className="mt-4" title={`${state}: daily peak forecast vs actual (MW)`} note="Two days ahead, same model as the national forecast">
+      <div className="mb-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-400">
+        <span>
+          Next: <span className="font-medium tabular-nums text-slate-100">{fmtNum(fc.latest.predicted)} MW</span> for {day(fc.latest.target)}
+        </span>
+        {live && (
+          <span>
+            Live error <span className={`font-medium tabular-nums ${better ? 'text-emerald-300' : 'text-amber-300'}`}>{live.mape.toFixed(1)}%</span> over {live.n} days
+            {baselines.length > 0 && (
+              <>
+                {' '}(simply repeating the latest day: {live.latestDayMape?.toFixed(1) ?? 'N/A'}%, the same day last week: {live.lastWeekMape?.toFixed(1) ?? 'N/A'}%)
+              </>
+            )}
+          </span>
+        )}
+      </div>
+      <div className="h-48">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={rows} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+            <CartesianGrid {...GRID} />
+            <XAxis dataKey="date" {...AXIS} tickFormatter={day} minTickGap={40} />
+            <YAxis {...AXIS} width={48} domain={['auto', 'auto']} tickFormatter={(v) => (v >= 1000 ? Math.round(v / 1000) + 'k' : v)} />
+            <Tooltip content={<ChartTooltip formatter={(v) => (v === null ? 'N/A' : fmtNum(v) + ' MW')} />} />
+            <Line type="monotone" dataKey="Actual" stroke={color} strokeWidth={2} dot={false} isAnimationActive={false} />
+            <Line type="monotone" dataKey="Forecast" stroke="#f8fafc" strokeDasharray="4 3" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </ChartBox>
+  )
+}
+
 function StateTrend({ data, selected, onSelect }) {
   const [metricId, setMetricId] = useState('peak')
   const metric = TREND_METRICS.find((m) => m.id === metricId)
@@ -297,6 +343,7 @@ function StateTrend({ data, selected, onSelect }) {
           <Empty>No history for {selected}.</Empty>
         )}
       </ChartBox>
+      <StateForecast fc={data.stateForecast?.[selected]} state={selected} color={lineColor} />
     </SectionCard>
   )
 }
