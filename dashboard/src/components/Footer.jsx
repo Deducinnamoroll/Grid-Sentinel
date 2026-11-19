@@ -48,15 +48,16 @@ export default function Footer() {
           </p>
         </Column>
       </div>
-      <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/5 pt-4 text-slate-500">
-        <span>Built by <strong className="font-semibold text-slate-300">Sagnik</strong></span>
-        <Link href="https://github.com/HalcyonVector">@HalcyonVector</Link>
-        <span className="text-slate-700">·</span>
-        <span>with <strong className="font-semibold text-slate-300">Abhirami</strong></span>
-        <Link href="https://github.com/menaegerie">@menaegerie</Link>
-        <span className="text-slate-700">·</span>
+      <div className="mt-5 flex flex-wrap items-center gap-y-1 border-t border-white/5 pt-4 text-slate-500">
+        <span>
+          Built by <strong className="font-semibold text-slate-300">Sagnik</strong>{' '}
+          (<Link href="https://github.com/HalcyonVector">@HalcyonVector</Link>) and{' '}
+          <strong className="font-semibold text-slate-300">Abhirami</strong>{' '}
+          (<Link href="https://github.com/menaegerie">@menaegerie</Link>)
+        </span>
+        <span className="mx-2.5 text-slate-600" aria-hidden="true">·</span>
         <Link href={REPO}>Repository</Link>
-        <span className="text-slate-700">·</span>
+        <span className="mx-2.5 text-slate-600" aria-hidden="true">·</span>
         <Link href={`${REPO}/blob/main/LICENSE`}>MIT License</Link>
       </div>
     </footer>
