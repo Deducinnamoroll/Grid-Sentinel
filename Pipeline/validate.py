@@ -53,7 +53,7 @@ BASELINE_COLS = {
     "study1_daily":  144,
     "study1_hourly": 151,
     "study2_scada":  164,   # wide frame (slim file + study1_daily join), not the committed file
-    "study3_states": 10,
+    "study3_states": 11,  # max_ace_mw added 2026-11-19
 }
 
 REGIONS = ["NR", "WR", "SR", "ER", "NER"]

@@ -153,7 +153,9 @@
  "MOP_E": [
   "% share",
   "(mu)",
+  "+ve/ -ve (mw)",
   "a. power supply position at all india and regional level",
+  "ace²(max)",
   "actual (mu)",
   "actual(mu)",
   "all india",
@@ -269,6 +271,8 @@
   "***godda (jharkhand) -> bangladesh power exchange is through the radial connection (isolated from indian grid)",
   "**note: all generation mu figures are gross",
   "*source: rldcs for solar connected to ists; sldcs for embedded solar. limited visibility of embedded solar data.",
+  "+ve/ -ve (mw)",
+  "ace²(max)",
   "amnsil",
   "balco",
   "drawal",
@@ -296,6 +300,7 @@
   "states",
   "welspun",
   "wr",
+  "²area control error",
   "¹based on demand and shortage data from the states/utilities"
  ],
  "TimeSeries": [

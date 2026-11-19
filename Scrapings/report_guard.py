@@ -113,6 +113,13 @@ def _range_ok(hist: pd.Series, v: float) -> bool:
     return lo - 0.5 * span <= v <= hi + 0.5 * span
 
 
+# Columns that stop on purpose because NLDC stopped reporting that quantity:
+# column -> first day it is empty. Not reported as broken from that day on.
+# study3_states.max_od_mw: from the 2026-11-18 report NLDC prints maximum Area
+# Control Error in that column instead; it is stored as max_ace_mw.
+RETIRED = {"max_od_mw": pd.Timestamp("2026-11-18")}
+
+
 def _daily_health(df: pd.DataFrame, day: pd.Timestamp, name: str, skip=()) -> list:
     df = df.set_index("date").sort_index()
     if day not in df.index:
@@ -125,6 +132,8 @@ def _daily_health(df: pd.DataFrame, day: pd.Timestamp, name: str, skip=()) -> li
     out = []
     for c in df.columns:
         if c in skip or not pd.api.types.is_numeric_dtype(df[c]):
+            continue
+        if c in RETIRED and day >= RETIRED[c]:
             continue
         v = today[c]
         p = prev[c]

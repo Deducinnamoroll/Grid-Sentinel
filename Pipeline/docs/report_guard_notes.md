@@ -58,3 +58,7 @@ python Scrapings/report_guard.py --seed --since 2026-09-30 # rebuild the list fr
 ```
 
 The list was seeded on 2026-11-10 from the 40 reports since 2026-09-30 (322 labels, 5 sheets).
+
+## Retired columns
+
+`RETIRED` in `report_guard.py` maps a column to the first day it is empty on purpose, because NLDC stopped reporting that quantity. The health check skips it from that day. First entry: `max_od_mw` from 2026-11-18, when NLDC replaced maximum over-drawal with maximum Area Control Error (stored as `max_ace_mw`; see `parse_psp_states_notes.md`). That change was the guard's first real catch: the 2026-11-19 run turned red on the new "ACE²(Max)" labels, the same day the report changed.

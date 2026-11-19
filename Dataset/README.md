@@ -115,8 +115,9 @@ One row per state/UT/entity per day (~37 per day), long format. Built from NLDC'
 | `energy_met_mu` | Energy met |
 | `drawal_schedule_mu` | Scheduled drawal |
 | `od_ud_mu` | Overdrawal(+)/Underdrawal(-) |
-| `max_od_mw` | Maximum overdrawal |
+| `max_od_mw` | Maximum overdrawal (up to 2026-11-17) |
 | `energy_shortage_mu` | Energy shortage |
+| `max_ace_mw` | Maximum Area Control Error, positive side (from 2026-11-18, when NLDC replaced max overdrawal with it in the report) |
 
 State naming changed over the dataset's history (e.g. J&K's Aug 2019 split into J&K and Ladakh UTs, Puducherry's older "Pondy" abbreviation) — these are normalized to one consistent name per entity across the full time range so the series doesn't fragment; see the scraper's `STATE_NAME_ALIASES` for the exact mapping.
 

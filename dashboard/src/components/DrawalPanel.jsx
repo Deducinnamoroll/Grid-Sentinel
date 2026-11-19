@@ -94,7 +94,7 @@ export default function DrawalPanel({ drawal }) {
         </table>
       </div>
       <p className="mt-3 text-xs leading-relaxed text-slate-500">
-        Total deviation adds up every day's gap from schedule whichever way it went; net lets over- and under-drawal cancel. {drawal.states.filter((s) => s.netMu < 0).length} of {drawal.states.length} states and UTs drew less than scheduled on balance. Top 15 shown.
+        Total deviation adds up every day's gap from schedule whichever way it went; net lets over- and under-drawal cancel. {drawal.states.filter((s) => s.netMu < 0).length} of {drawal.states.length} states and UTs drew less than scheduled on balance. Top 15 shown. Largest over-drawal runs to 17 November 2026: from the next day NLDC reports the maximum Area Control Error in that column instead.
       </p>
     </SectionCard>
   )

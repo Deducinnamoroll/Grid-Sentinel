@@ -16,7 +16,8 @@ broken before:
   2026-08-05    shortage row relabelled "Shoratge..."  (fixed 2026-11-10)
   2026-09-29    bulk consumers moved to sheet MOP_E1,
                 blank rows inside section C            (fixed 2026-11-10)
-  2026-11-09    current layout
+  2026-11-09    MOP_E1 layout, max OD column
+  2026-11-18    max OD column now "ACE(Max)", stored as max_ace_mw (2026-11-19)
 
 When a parser is fixed on purpose, re-parse the affected days into the
 datasets in the same change; these tests then pass again.
@@ -51,6 +52,7 @@ REPORTS = [
     "05.08.26_NLDC_PSP.xls",
     "29.09.26_NLDC_PSP.xls",
     "09.11.26_NLDC_PSP.xls",
+    "18.11.26_NLDC_PSP.xls",
 ]
 SCADA_REPORTS = [r for r in REPORTS if r.endswith(".xls") and not r.startswith("01.06.23")]
 

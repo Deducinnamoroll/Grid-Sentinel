@@ -48,7 +48,13 @@ import pandas as pd
 REGIONS = ["NR", "WR", "SR", "ER", "NER"]
 
 COLS = ["max_demand_met_mw", "shortage_max_demand_mw", "energy_met_mu",
-        "drawal_schedule_mu", "od_ud_mu", "max_od_mw", "energy_shortage_mu"]
+        "drawal_schedule_mu", "od_ud_mu", "max_od_mw", "energy_shortage_mu",
+        "max_ace_mw"]
+# The seven report columns, in report order. From the 2026-11-18 report the
+# sixth one is headed "ACE(Max) +ve/-ve (MW)": NLDC reports the maximum Area
+# Control Error there instead of the maximum over-drawal. It is stored as
+# max_ace_mw, and max_od_mw is left empty, so each column keeps one meaning.
+REPORT_COLS = COLS[:7]
 
 # Same rationale as parse_psp_pdf_xls_file1/file2.py's MIN_VALID_DATE: a few
 # older PDFs without a subject line have a typo'd year in their own "Date of
@@ -253,7 +259,7 @@ def _pdf_states(tables):
             region = str(row[0] or "").strip()
             region = region if region in REGIONS else None
             vals = [_to_float(row[i]) for i in range(2, 9)]
-            rows.append({"region": region, "state": state, **dict(zip(COLS, vals))})
+            rows.append({"region": region, "state": state, **dict(zip(REPORT_COLS, vals)), "max_ace_mw": None})
         if rows:
             return rows
     return []
@@ -323,6 +329,12 @@ def _xls_states(df, title="power supply position in states"):
     if col_row is None:
         return []
 
+    # Which quantity the sixth value column (sheet column 7) holds: "Max OD"
+    # until 2026-11-17, "ACE(Max)" from 2026-11-18. Read from its two header rows.
+    head = " ".join(str(df.iloc[r, 7]) for r in (col_row - 1, col_row)
+                    if df.shape[1] > 7 and not pd.isna(df.iloc[r, 7])).lower()
+    is_ace = "ace" in head
+
     rows = []
     blanks = 0
     for i in range(col_row + 1, len(df)):
@@ -345,7 +357,10 @@ def _xls_states(df, title="power supply position in states"):
         vals = [_to_float(df.iloc[i, c]) if c < df.shape[1] else None for c in range(2, 9)]
         if all(v is None for v in vals):
             continue  # a stray label, not a data row
-        rows.append({"region": region, "state": state, **dict(zip(COLS, vals))})
+        row = {"region": region, "state": state, **dict(zip(REPORT_COLS, vals)), "max_ace_mw": None}
+        if is_ace:
+            row["max_ace_mw"], row["max_od_mw"] = row["max_od_mw"], None
+        rows.append(row)
     return rows
 
 

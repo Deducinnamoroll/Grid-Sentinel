@@ -331,9 +331,15 @@ _add("drawal_schedule_mu", "MU", SEC_STATES, DATE_STATES,
 _add("od_ud_mu", "MU", SEC_STATES, DATE_STATES,
      "Overdrawal(+)/Underdrawal(-) relative to the scheduled drawal.")
 _add("max_od_mw", "MW", SEC_STATES, DATE_STATES,
-     "Maximum overdrawal during the day.")
+     "Maximum overdrawal during the day. Reported up to 2026-11-17; from 2026-11-18 NLDC prints the "
+     "maximum Area Control Error in this column instead (see max_ace_mw), so this is empty from that date. "
+     "Where the report gives 'max OD/ max UD', the OD (first) figure.")
 _add("energy_shortage_mu", "MU", SEC_STATES, DATE_STATES,
      "Energy shortage for this state/entity.")
+_add("max_ace_mw", "MW", SEC_STATES, "2026-11-18",
+     "Maximum Area Control Error (ACE) during the day, the positive (+ve) figure of NLDC's '+ve/ -ve' pair. "
+     "ACE is the deviation from scheduled interchange adjusted for frequency; NLDC reports it in place of "
+     "maximum overdrawal from 2026-11-18. Empty before that date.")
 
 
 # ── Inference fallback ────────────────────────────────────────────────────────

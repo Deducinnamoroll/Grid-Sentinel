@@ -326,8 +326,9 @@
       "energy_met_mu": 0.01,
       "drawal_schedule_mu": 0.01,
       "od_ud_mu": 0.01,
-      "max_od_mw": 5.87,
-      "energy_shortage_mu": 0.01
+      "max_od_mw": 0.16,
+      "energy_shortage_mu": 0.01,
+      "max_ace_mw": 99.96
     },
     "study1_hourly": {
       "date": 0.0,

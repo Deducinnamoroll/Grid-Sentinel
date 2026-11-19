@@ -84,3 +84,9 @@ Changes:
 - `Hindustan Zinc` (NR) and `Welspun` (WR, new) are in `STATE_TO_REGION`; `Pipeline/build_dashboard_data.py` treats both as non-states.
 
 Repair of `study3_states.csv`: 120 rows renamed, 201 regional-sum rows dropped, 306 rows added (41 days x 7 entities, plus the 19 states lost on 2026-09-29). Every 2026 row on a date with a parsed report now matches the fixed parser exactly. Found by the replay of `Scrapings/report_guard.py`, which flags this change on its first day.
+
+## Change 2026-11-19: max OD column becomes ACE (from the 2026-11-18 report)
+
+From the 2026-11-18 report, the sixth value column of section C and of MOP_E1 section J is headed "ACE²(Max) +ve/-ve (MW)" (footnote: "²Area Control Error") instead of "Max OD(+)/UD(-) (MW)". Same position, same "a/ -b" pair, different quantity: ACE is the deviation from scheduled interchange adjusted for frequency, not the raw over-drawal (Punjab: 916 MW max OD on 11-17, 1,772 MW max ACE on 11-18). `Scrapings/report_guard.py` flagged the new labels on the first day; the stored values were correct for the column, but the column's meaning had changed.
+
+So each column keeps one meaning: `_xls_states` reads the column's two header rows, and when they mention "ACE" it stores the value in a new column, `max_ace_mw` (the positive, first figure of the pair), and leaves `max_od_mw` empty. `COLS` now lists eight value columns (`max_ace_mw` last), and `REPORT_COLS` the seven report columns in order. The 41 rows of 2026-11-18 were moved to the new column and checked against the fixed parser. Also updated: `Pipeline/validate.py` (11 columns), `Pipeline/null_baselines.json`, `Pipeline/build_data_dict.py` (and `Dataset/data_dictionary.xlsx`), `Dataset/README.md`, the 18.11.26 report added to `tests/`, and `report_guard.RETIRED` so the health check does not report `max_od_mw` as broken from that date.
