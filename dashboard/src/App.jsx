@@ -1,5 +1,6 @@
 import { memo, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Hero from './components/Hero'
+import Footer from './components/Footer'
 import { TabActiveContext } from './components/ui'
 import { loadData, peekData } from './lib/data'
 
@@ -284,22 +285,7 @@ function App() {
           </div>
         )}
 
-        <footer className="mt-2 pb-6 text-center text-xs text-slate-600">
-          Data and models:{' '}
-          <a href="https://github.com/Deducinnamoroll/Grid-Sentinel" target="_blank" rel="noopener noreferrer" className="text-slate-500 underline decoration-white/20 hover:text-slate-300">
-            Deducinnamoroll/Grid-Sentinel
-          </a>{' '}
-          · Dataset on{' '}
-          <a
-            href="https://www.kaggle.com/datasets/halcyonvector/india-power-grid-nldc-daily-psp-reports"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-slate-500 underline decoration-white/20 hover:text-slate-300"
-          >
-            Kaggle
-          </a>{' '}
-          · Source: NLDC daily Power System Position reports
-        </footer>
+        <Footer />
       </div>
     </main>
   )
