@@ -29,7 +29,7 @@ Three changes in 2026 went unnoticed, all found by hand on 2026-11-10:
 - a value is more than half a range-width outside the column's last-year range (needs 300 days of history);
 - an entity present on at least 25 of the 30 days is missing.
 
-The zero and range rules skip columns that legitimately sit at 0 or swing (`ir_*`, `xb_*`, `ie_*`, `trans_*`, `freq_pct_*`, shortages, OD/UD). With them included the replay below flagged 97 of 312 days.
+The zero and range rules skip columns that legitimately sit at 0 or swing (`ir_*`, `xb_*`, `ie_*`, `trans_*`, `freq_pct_*`, shortages, OD/UD, and since 2026-11-20 the storage columns, which are new and growing as capacity is added). With them included the replay below flagged 97 of 312 days.
 
 ## Tested by replaying 2026
 

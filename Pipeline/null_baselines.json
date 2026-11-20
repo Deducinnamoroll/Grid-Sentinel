@@ -167,6 +167,8 @@
       "net_demand_met_mw": 0.0,
       "total_gen_mw": 0.0,
       "net_trans_exchange_mw": 0.0,
+      "storage_demand_mw": 76.47,
+      "storage_gen_mw": 72.89,
       "evening_peak_demand_nr_mw": 0.0,
       "evening_peak_demand_wr_mw": 0.0,
       "evening_peak_demand_sr_mw": 0.0,

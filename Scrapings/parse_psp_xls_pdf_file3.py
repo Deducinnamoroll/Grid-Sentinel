@@ -778,7 +778,17 @@ def _parse_timeseries_time_cell(val):
 
 
 SCADA_SOURCE_COLS = ("nuclear_mw", "wind_mw", "solar_mw", "hydro_mw",
-                     "gas_mw", "thermal_mw", "others_mw")
+                     "gas_mw", "thermal_mw", "others_mw", "storage_gen_mw")
+
+# Every slot record carries these keys in this order, None when the report has
+# no such column, so the output columns are the same for every report era.
+# The two storage columns (pumped hydro and battery storage) first appear on
+# 2026-05-06 (discharge, "STORAGE (PSP&BESS)") and 2026-06-01 (charging,
+# "STORAGE DEMAND (PSP&BESS)"); added to the dataset 2026-11-20.
+SCADA_SLOT_COLS = ("freq_hz", "demand_met_mw", "nuclear_mw", "wind_mw", "solar_mw",
+                   "hydro_mw", "gas_mw", "thermal_mw", "others_mw",
+                   "net_demand_met_mw", "total_gen_mw", "net_trans_exchange_mw",
+                   "storage_demand_mw", "storage_gen_mw")
 
 
 def _blank_scada_dropouts(rec):
@@ -846,6 +856,10 @@ def _xls_parse_timeseries_records(df):
         ("NET TRANSNATIONAL EXCHANGE", "net_trans_exchange_mw"),
         ("NET TRANSANATIONAL EXCHANGE", "net_trans_exchange_mw"),
         ("NET DEMAND MET",             "net_demand_met_mw"),
+        # Before plain "DEMAND MET" and "STORAGE": charging load, part of demand met.
+        ("STORAGE DEMAND",             "storage_demand_mw"),
+        # Discharge from pumped hydro and batteries, part of total generation.
+        ("STORAGE",                    "storage_gen_mw"),
         ("TOTAL GENERATION",           "total_gen_mw"),
         ("DEMAND MET",                 "demand_met_mw"),
         ("FREQUENCY",                  "freq_hz"),
@@ -885,6 +899,7 @@ def _xls_parse_timeseries_records(df):
         data_started = True
         hh, mm = parsed
         rec = {"hhmm": f"{hh:02d}{mm:02d}", "time": f"{hh:02d}:{mm:02d}"}
+        rec.update(dict.fromkeys(SCADA_SLOT_COLS))
         for j, metric_key in col_metric.items():
             rec[metric_key] = _to_float(df.iloc[i, j]) if j < df.shape[1] else None
         _blank_scada_dropouts(rec)

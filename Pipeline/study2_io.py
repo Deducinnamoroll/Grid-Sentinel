@@ -12,11 +12,12 @@ they were 85% of the file and added nothing. The broadcast copy pushed the file 
 September 2027 and blocked the daily bot commit.
 
 The committed file now holds only the columns that are not in study1_daily.csv:
-date, time, hhmm, the 12 SCADA slot columns, and the 6 time_max_demand_met_* columns
+date, time, hhmm, the 14 SCADA slot columns (12 until the two storage columns
+were added on 2026-11-20), and the 6 time_max_demand_met_* columns
 (daily, but study1_daily has no equivalent). That is ~10 MB, growing ~14 KB a day.
 
 Every consumer reads the file through load_study2(), which re-joins study1_daily on
-date and returns the same 164-column frame as before. The Kaggle push writes the
+date and returns the full wide frame (166 columns since 2026-11-20). The Kaggle push writes the
 widened frame with write_wide(), so the published dataset keeps the full schema.
 
 Functions

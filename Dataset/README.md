@@ -10,10 +10,10 @@ Covers the Indian national grid from 2018 onward across four complementary datas
 
 | File | Rows | Cols | Period | Granularity |
 |------|------|------|--------|-------------|
-| `study1_daily.csv` | 2,801 | 144 | Dec 2018 → present | 1 row per day |
+| `study1_daily.csv` | 2,812 | 144 | Dec 2018 → present | 1 row per day |
 | `study1_hourly.csv` | 46,728 | 151 | Jan 2019 → Apr 2024 | 1 row per hour |
-| `study2_scada.csv` | 68,700 | 164 | Nov 2024 → present | 1 row per 15-min block |
-| `study3_states.csv` | 104,024 | 10 | Dec 2018 → present | 1 row per state/UT/entity per day |
+| `study2_scada.csv` | 69,756 | 166 | Nov 2024 → present | 1 row per 15-min block |
+| `study3_states.csv` | 104,580 | 11 | Dec 2018 → present | 1 row per state/UT/entity per day |
 
 Row counts grow daily via automated updates — treat as a snapshot, not a live figure.
 
@@ -77,7 +77,7 @@ All 144 daily PSP feature columns are broadcast (repeated) across the 24 hourly 
 
 One row per 15-minute block (96 per day). Built from the `TimeSeries` sheet in NLDC XLS files, available from November 2024 onward. Daily MOP_E, IR-Line, and CrossBorder features are broadcast onto each 15-minute row.
 
-The Kaggle copy has all 164 columns. The copy in the GitHub repository is stored slim (21 columns: the timestamp, the SCADA readings and `time_max_demand_met_*`) to stay under GitHub's file size limit. The other 143 columns are exactly that day's row of `study1_daily.csv`. To get the full table from the repository, join on `date`:
+The Kaggle copy has all 166 columns. The copy in the GitHub repository is stored slim (23 columns: the timestamp, the SCADA readings and `time_max_demand_met_*`) to stay under GitHub's file size limit. The other 143 columns are exactly that day's row of `study1_daily.csv`. To get the full table from the repository, join on `date`:
 
 ```python
 s2 = pd.read_csv("study2_scada.csv").merge(pd.read_csv("study1_daily.csv"), on="date", how="left")
@@ -93,6 +93,7 @@ s2 = pd.read_csv("study2_scada.csv").merge(pd.read_csv("study1_daily.csv"), on="
 | Real-time generation | `nuclear_mw`, `wind_mw`, `solar_mw`, `hydro_mw`, `gas_mw`, `thermal_mw`, `total_gen_mw` |
 | Demand | `demand_met_mw`, `net_demand_met_mw` |
 | Net transmission | `net_trans_exchange_mw` |
+| Storage (pumped hydro and batteries) | `storage_demand_mw` (charging, part of `demand_met_mw`, from 2026-06-01), `storage_gen_mw` (discharge, part of `total_gen_mw`, from 2026-05-06) |
 | Frequency | `freq_hz`, `freq_fvi`, `freq_pct_below_497`, `freq_pct_497_498`, `freq_pct_499_5005`, `freq_pct_above_5005` |
 | Evening peak demand | `evening_peak_demand_nr_mw`, `..._wr_`, `..._sr_`, `..._er_`, `..._ner_` |
 | IR-Line + CrossBorder | Same 21 + 12 cols as study1_daily, broadcast per slot |

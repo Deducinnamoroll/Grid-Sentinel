@@ -102,7 +102,7 @@ def check_labels(path, known=None) -> list:
 # cross-border trade, schedules and deviations, shortages, frequency-band
 # shares). Measured on 2026 history: with these included, the zero and range
 # rules flagged 97 of 312 normal days. They still get the "went empty" rule.
-_VOLATILE = re.compile(r"^(ir_|xb_|ie_|trans_|freq_pct_)|shortage|odud|od_ud")
+_VOLATILE = re.compile(r"^(ir_|xb_|ie_|trans_|freq_pct_)|shortage|odud|od_ud|storage")
 
 
 def _range_ok(hist: pd.Series, v: float) -> bool:

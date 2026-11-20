@@ -32,11 +32,29 @@ Output columns are `date`, `time`, `hhmm` first, then the rest. Rows are sorted 
 
 ## TimeSeries records (`_xls_parse_timeseries_records`)
 
-- Finds the header row (first cell `TIME`) and maps columns by label, most specific first, so `NET DEMAND MET` is not taken as `DEMAND MET`.
+- Finds the header row (first cell `TIME`) and maps columns by label, most specific first, so `NET DEMAND MET` is not taken as `DEMAND MET` and `STORAGE DEMAND` is not taken as `STORAGE`.
+- **Same columns for every report (since 2026-11-20).** Each record has every key in `SCADA_SLOT_COLS`, in that order, `None` where the report has no such column. Before this a record only had the columns its report had, so the output columns depended on the report era.
 - The TIME cell may be a time object, a fraction of a day, or `H:MM[:SS]` text (`_parse_timeseries_time_cell`).
 - Blank rows are skipped. A non-time row before the data is skipped (units sub-header). The first non-time row after the data ends the table (footer).
 - **Dropout zeros become blanks (since 2026-11-10).** `_blank_scada_dropouts()` blanks `freq_hz` when it is 0, and when `thermal_mw` is 0 it blanks every source column that is 0 plus `total_gen_mw`. See the fix below.
 - **One row per time (since 2026-11-10).** If a time appears twice, only the first row is kept. An exact repeat is dropped silently. A repeat with different values prints `TimeSeries: slot HH:MM appears twice with different values -- keeping the first`.
+
+## Added 2026-11-20: storage columns
+
+NLDC added two columns to the TimeSeries sheet that the parser did not read:
+
+| Report column | Stored as | First day | Meaning |
+|---|---|---|---|
+| STORAGE (PSP&BESS) (MW) | `storage_gen_mw` | 2026-05-06 | pumped hydro and battery discharge, part of total generation |
+| STORAGE DEMAND (PSP&BESS) (MW) | `storage_demand_mw` | 2026-06-01 | pumping and battery charging, part of demand met (NLDC footnote 1) |
+
+From 2026-05-06 `hydro_mw` excludes pumped hydro (NLDC footnote 2); earlier reports do not say, so hydro before that date may include it.
+
+How it was added:
+- The parser maps both labels. `storage_gen_mw` is in `SCADA_SOURCE_COLS`, so a dropout 0 is blanked like the other sources.
+- A one-off script (not kept) re-parsed all 729 stored days from their raw reports with `_xls_parse_timeseries_records()` and merged the two columns in on (date, hhmm). The 12 existing slot columns re-parsed identically in every slot, and the file's existing text is unchanged; the two new columns sit after `net_trans_exchange_mw`.
+- Check: the seven sources plus `storage_gen_mw` equal `total_gen_mw` within 2 MW in all 16,416 slots from 2026-06-01 to 2026-11-19.
+- On an average day since June, storage charges from about 08:00 to 15:00 (about 5.4 GW at noon, on solar power) and discharges from 17:00 to about 01:00 (about 3.8 GW).
 
 ## Fix 2026-11-10: repeated slot rows
 

@@ -803,7 +803,11 @@ DAY_SERIES = {
     "thermal": "thermal_mw", "hydro": "hydro_mw", "gas": "gas_mw", "nuclear": "nuclear_mw",
     "solar": "solar_mw", "wind": "wind_mw", "others": "others_mw",
     "demand": "demand_met_mw", "freq": "freq_hz",
+    # Pumped hydro and battery storage, in NLDC's report from 2026-05-06
+    # (discharge) and 2026-06-01 (charging). Left out of a day that has none.
+    "storageOut": "storage_gen_mw", "storageIn": "storage_demand_mw",
 }
+OPTIONAL_DAY_SERIES = {"storageOut", "storageIn"}
 
 
 def build_day_files(era3_df):
@@ -823,10 +827,14 @@ def build_day_files(era3_df):
         days = {}
         for date, g in gm.groupby("date"):
             g = g.drop_duplicates("time").set_index("time").reindex(slots)
-            days[date] = {
+            day = {
                 k: [None if pd.isna(v) else (round(float(v), 2) if k == "freq" else int(round(v))) for v in g[c]]
                 for k, c in DAY_SERIES.items()
             }
+            for k in OPTIONAL_DAY_SERIES:
+                if all(v is None for v in day[k]):
+                    del day[k]
+            days[date] = day
         text = json.dumps({"slots": slots, "days": days}, separators=(",", ":"), allow_nan=False)
         path = days_dir / f"{month}.json"
         if not path.exists() or path.read_text(encoding="utf-8") != text:

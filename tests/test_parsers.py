@@ -149,3 +149,10 @@ def test_append_study1_restores_day_exactly(monkeypatch, tmp_path):
 
 def test_append_study3_restores_day_exactly(monkeypatch, tmp_path):
     _append_roundtrip(monkeypatch, tmp_path, "study3_states.csv", "STUDY3_CSV", "append_study3", "29.09.26_NLDC_PSP.xls")
+
+
+def test_append_study2_restores_day_exactly(monkeypatch, tmp_path):
+    # Added 2026-11-20 with the two storage columns: the daily append aligns
+    # new rows to the stored header, so this checks it fills them (and every
+    # other slot column) exactly as the stored file has them.
+    _append_roundtrip(monkeypatch, tmp_path, "study2_scada.csv", "STUDY2_CSV", "append_study2", "19.11.26_NLDC_PSP.xls")

@@ -17,6 +17,7 @@ Each parser is run on one real NLDC report from every era in which the report la
 | `test_states_parser_matches_dataset` | all 10 | the day's entities and values in `study3_states.csv`, and that every entity has a region |
 | `test_scada_parser_matches_dataset` | the 5 with a TimeSeries sheet | the day's 96 slots in `study2_scada.csv`, after `study2_io.slim` |
 | `test_append_study1_restores_day_exactly` / `..._study3_...` | 29.09.26 | removes that day from a copy, re-appends it with `update_live.py`, requires the copy to be byte-identical |
+| `test_append_study2_restores_day_exactly` | 19.11.26 | the same for `study2_scada.csv`; added 2026-11-20 with the storage columns, since the append aligns new rows to the stored header |
 
 Reports: 01.01.19, 15.06.20, 15.06.21, 15.06.22 (PDF, including run-together text), 01.06.23 (first XLS layout), 16.01.25, 13.02.26 (max OD as "OD/ UD"), 05.08.26 (relabelled shortage row), 29.09.26 (MOP_E1 sheet, blank rows in section C), 09.11.26 (current). The three 2026 layout changes are the ones that broke parsers silently; see `parse_psp_pdf_xls_notes.md` and `parse_psp_states_notes.md`.
 

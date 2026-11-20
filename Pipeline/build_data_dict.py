@@ -5,7 +5,7 @@ Reads column names from the four output CSVs and writes
 Dataset/data_dictionary.xlsx. The workbook has five sheets:
 
     study1_daily    -- 144 columns from File2_Raw parsings
-    study2_scada    -- 164 columns from File3_Raw parsings (15-min slot level)
+    study2_scada    -- 166 columns from File3_Raw parsings (15-min slot level)
     study1_hourly   -- 151 columns (study1_daily PSP cols joined onto hourly load)
     study3_states   -- 10 columns, section C state-level power supply position (long format)
     master          -- Union of all unique column names across the four datasets
@@ -288,9 +288,17 @@ _add("others_mw",            "MW", SEC_SCADA, DATE_SCADA,
 _add("net_demand_met_mw",    "MW", SEC_SCADA, DATE_SCADA,
      "Net demand met after subtracting embedded renewables.")
 _add("total_gen_mw",         "MW", SEC_SCADA, DATE_SCADA,
-     "Total scheduled generation in the slot.")
+     "Total generation in the slot: the seven source columns plus storage_gen_mw "
+     "(equal to within 2 MW in every slot since 2026-06-01).")
 _add("net_trans_exchange_mw","MW", SEC_SCADA, DATE_SCADA,
      "Net transmission exchange in the slot.")
+_add("storage_demand_mw",    "MW", SEC_SCADA, "2026-06-01",
+     "Storage load in the slot: pumped hydro pumping and battery (BESS) charging. "
+     "Included in demand_met_mw. Empty before NLDC added it to the report.")
+_add("storage_gen_mw",       "MW", SEC_SCADA, "2026-05-06",
+     "Generation from storage in the slot: pumped hydro and battery (BESS) discharge. "
+     "Included in total_gen_mw, and not in hydro_mw (hydro excludes pumped hydro). "
+     "NLDC reports it from 2026-05-06; empty before.")
 
 # Kaggle hourly load columns (study1_hourly only)
 _add("National Hourly Demand",           "MW", SEC_KAGGLE, DATE_HOURLY,

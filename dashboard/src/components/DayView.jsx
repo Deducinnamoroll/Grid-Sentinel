@@ -13,7 +13,11 @@ const SOURCES = [
   { key: 'wind', label: 'Wind', color: '#0284c7' },
   { key: 'solar', label: 'Solar', color: '#d97706' },
   { key: 'others', label: 'Others', color: '#475569' },
+  // Pumped hydro and batteries giving back stored energy. NLDC reports it from
+  // 6 May 2026; a day without it has no such key and the band is left out.
+  { key: 'storageOut', label: 'Storage', color: '#2dd4bf', optional: true },
 ]
+const STORAGE_COLORS = { Charging: '#2dd4bf', Discharging: '#f0abfc' }
 
 // One file per month (public/data/days/YYYY-MM.json), fetched when first
 // viewed and kept for the visit.
@@ -31,6 +35,13 @@ function loadMonth(month) {
 }
 
 const kTick = (v) => Math.round(v / 1000) + 'k'
+// A label every three hours; on a narrow screen the ones that would overlap are
+// skipped, so a phone shows every six hours instead of a run-together strip.
+const TIME_AXIS = {
+  ticks: ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'],
+  interval: 'preserveStart',
+  minTickGap: 12,
+}
 
 function shiftDay(date, n) {
   const d = new Date(date + 'T00:00:00Z')
@@ -56,16 +67,21 @@ export default function DayView({ index }) {
   }, [want])
 
   const day = month && month.id === want ? month.days[date] : undefined
+  const sources = useMemo(() => (day ? SOURCES.filter((s) => !s.optional || day[s.key]) : []), [day])
+  const hasStorage = Boolean(day && (day.storageIn || day.storageOut))
   const rows = useMemo(() => {
     if (!day) return []
     return month.slots.map((t, i) => {
       const r = { t }
-      for (const s of SOURCES) r[s.label] = day[s.key][i]
+      for (const s of sources) r[s.label] = day[s.key][i]
       r.Demand = day.demand[i]
       r.Frequency = day.freq[i]
+      // Charging is drawn below zero so the two directions read apart.
+      r.Charging = day.storageIn ? (day.storageIn[i] === null ? null : -day.storageIn[i]) : null
+      r.Discharging = day.storageOut ? day.storageOut[i] : null
       return r
     })
-  }, [day, month])
+  }, [day, month, sources])
 
   const stats = useMemo(() => {
     if (!day) return null
@@ -135,11 +151,11 @@ export default function DayView({ index }) {
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                   <CartesianGrid {...GRID} />
-                  <XAxis dataKey="t" {...AXIS} interval={11} />
+                  <XAxis dataKey="t" {...AXIS} {...TIME_AXIS} />
                   <YAxis {...AXIS} tickFormatter={kTick} width={44} />
                   <Tooltip content={<ChartTooltip formatter={(v) => (v === null ? 'N/A' : fmtNum(v) + ' MW')} />} />
                   <Legend {...LEGEND} />
-                  {SOURCES.map((s) => (
+                  {sources.map((s) => (
                     <Area key={s.key} type="monotone" dataKey={s.label} stackId="g" stroke={s.color} fill={s.color} fillOpacity={0.6} strokeWidth={0.5} isAnimationActive={false} />
                   ))}
                   <Line type="monotone" dataKey="Demand" stroke="#f8fafc" strokeWidth={2} dot={false} isAnimationActive={false} />
@@ -148,12 +164,32 @@ export default function DayView({ index }) {
             </div>
           </ChartBox>
 
+          {hasStorage && (
+            <ChartBox className="mt-4" title="Pumped hydro and battery storage (MW)" note="Charging below zero, discharging above">
+              <div className="h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                    <CartesianGrid {...GRID} />
+                    <XAxis dataKey="t" {...AXIS} {...TIME_AXIS} />
+                    <YAxis {...AXIS} tickFormatter={kTick} width={44} />
+                    <ReferenceLine y={0} stroke="rgba(255,255,255,0.25)" />
+                    <Tooltip content={<ChartTooltip formatter={(v) => (v === null ? 'N/A' : fmtNum(Math.abs(v)) + ' MW')} />} />
+                    <Legend {...LEGEND} />
+                    {['Charging', 'Discharging'].map((k) => (
+                      <Area key={k} type="monotone" dataKey={k} stroke={STORAGE_COLORS[k]} fill={STORAGE_COLORS[k]} fillOpacity={0.35} strokeWidth={1.5} isAnimationActive={false} />
+                    ))}
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </ChartBox>
+          )}
+
           <ChartBox className="mt-4" title="Frequency (Hz)" note="Normal band 49.9 to 50.05 Hz">
             <div className="h-40">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                   <CartesianGrid {...GRID} />
-                  <XAxis dataKey="t" {...AXIS} interval={11} />
+                  <XAxis dataKey="t" {...AXIS} {...TIME_AXIS} />
                   <YAxis {...AXIS} domain={[49.8, 50.2]} width={44} tickFormatter={(v) => v.toFixed(1)} />
                   <ReferenceLine y={49.9} stroke="rgba(251,113,133,0.5)" strokeDasharray="4 4" />
                   <ReferenceLine y={50.05} stroke="rgba(56,189,248,0.5)" strokeDasharray="4 4" />
@@ -164,7 +200,7 @@ export default function DayView({ index }) {
             </div>
           </ChartBox>
           <p className="mt-3 text-xs leading-relaxed text-slate-500">
-            Generation runs a few percent above demand met; the gap is mostly transmission losses and power used inside the plants, with a small part traded with neighbouring countries. Frequency drops when load runs ahead of generation and rises when it falls behind.
+            Demand met includes storage charging: pumped hydro plants pumping water uphill and batteries charging, mostly at midday on solar power, to give it back in the evening. Generation, which includes storage discharge, runs a little above demand met; the gap is transmission losses and power used inside the plants, with a small part traded with neighbouring countries. NLDC has reported storage discharge since 6 May 2026 and charging since 1 June 2026. Frequency drops when load runs ahead of generation and rises when it falls behind.
           </p>
         </>
       )}

@@ -68,7 +68,7 @@ The committed file is slim (no `study1_daily` columns, see `study2_io_notes.md`)
 |-------|--------------------|-----------|
 | Committed file is slim | FAIL | No column other than `date` may also be in `study1_daily.csv` (fix: `python Pipeline/study2_io.py --slim-in-place`) |
 | Every SCADA date has a `study1_daily` row | FAIL | Otherwise that day's daily columns would join as empty |
-| Column count | FAIL | Joined frame must have 164 |
+| Column count | FAIL | Joined frame must have 166 (164 until the storage columns were added on 2026-11-20) |
 | Row count | FAIL | Must be >= 55,068 |
 | Duplicate (date, hhmm) pairs | FAIL | Zero allowed |
 | Data freshness | WARN | Latest date must be within 5 days of today |

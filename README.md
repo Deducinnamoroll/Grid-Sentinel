@@ -84,12 +84,12 @@ All data comes from NLDC / Grid-India's [daily PSP reports](https://grid-india.i
 
 | File | Rows | Cols | Period | Granularity |
 |------|------|------|--------|-------------|
-| `study1_daily.csv` | 2,800 | 144 | Dec 2018 to present | 1 row per day |
+| `study1_daily.csv` | 2,812 | 144 | Dec 2018 to present | 1 row per day |
 | `study1_hourly.csv` | 46,728 | 151 | Jan 2019 to Apr 2024 | 1 row per hour |
-| `study2_scada.csv` | 68,604 | 164 | Nov 2024 to present | 1 row per 15-min block |
-| `study3_states.csv` | 103,985 | 10 | Dec 2018 to present | 1 row per state/UT/entity per day |
+| `study2_scada.csv` | 69,756 | 166 | Nov 2024 to present | 1 row per 15-min block |
+| `study3_states.csv` | 104,580 | 11 | Dec 2018 to present | 1 row per state/UT/entity per day |
 
-Counts as of 9 November 2026; they grow daily. In this repository `study2_scada.csv` is stored with 21 columns, without the 143 daily columns it shares with `study1_daily.csv`, to stay under GitHub's file size limit. Kaggle has the full 164-column file, and `Pipeline/study2_io.py` rebuilds it locally. Column-level documentation, known gaps and the dataset license are in [Dataset/README.md](Dataset/README.md) and `Dataset/data_dictionary.xlsx`.
+Counts as of 19 November 2026; they grow daily. In this repository `study2_scada.csv` is stored with 23 columns, without the 143 daily columns it shares with `study1_daily.csv`, to stay under GitHub's file size limit. Kaggle has the full 166-column file, and `Pipeline/study2_io.py` rebuilds it locally. Column-level documentation, known gaps and the dataset license are in [Dataset/README.md](Dataset/README.md) and `Dataset/data_dictionary.xlsx`.
 
 ---
 

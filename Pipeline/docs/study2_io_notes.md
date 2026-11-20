@@ -26,7 +26,7 @@ Now the committed file keeps only what is unique to it: the date, the slot time,
 
 ## What is in the committed file
 
-21 columns: `date`, `time`, `hhmm`, `freq_hz`, `demand_met_mw`, `nuclear_mw`, `wind_mw`, `solar_mw`, `hydro_mw`, `gas_mw`, `thermal_mw`, `others_mw`, `net_demand_met_mw`, `total_gen_mw`, `net_trans_exchange_mw`, and `time_max_demand_met_{nr,wr,sr,er,ner,total}`.
+23 columns: `date`, `time`, `hhmm`, `freq_hz`, `demand_met_mw`, `nuclear_mw`, `wind_mw`, `solar_mw`, `hydro_mw`, `gas_mw`, `thermal_mw`, `others_mw`, `net_demand_met_mw`, `total_gen_mw`, `net_trans_exchange_mw`, `storage_demand_mw`, `storage_gen_mw` (both added 2026-11-20), and `time_max_demand_met_{nr,wr,sr,er,ner,total}`.
 
 The rule is not a fixed list. `slim()` drops every column, except `date`, whose name is also in `study1_daily.csv`. The six `time_max_demand_met_*` columns are daily values too, but `study1_daily` has no equivalent, so they stay. If the parser gains a new daily column that is not in `study1_daily`, it stays as well. Nothing is dropped unless it can be re-joined.
 
@@ -36,7 +36,7 @@ The rule is not a fixed list. `slim()` drops every column, except `date`, whose 
 |---|---|
 | `slim(wide_df, study1_cols)` | Drops the shared columns. |
 | `widen(slim_df, study1_df)` | Left join of `study1_daily` on `date`, many-to-one (pandas checks that `study1_daily` has one row per date). |
-| `load_study2(parse_dates=True)` | Reads both CSVs and returns the 164-column frame every consumer used before. |
+| `load_study2(parse_dates=True)` | Reads both CSVs and returns the full wide frame (164 columns at the switch, 166 since the storage columns). |
 | `wide_columns()` | The wide column list from the two headers only (no data read). Used by `build_data_dict.py` and `kaggle_metadata.py`. |
 | `write_wide(out_path)` | Writes the wide file with ISO date strings, as the CSVs store them. |
 
