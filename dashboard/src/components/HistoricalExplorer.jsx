@@ -111,8 +111,8 @@ function Era1Tab({ era1Monthly }) {
               <YAxis domain={[0, 100]} stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 11 }} width={30} />
               <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(0)} />} />
               <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
-              <Line type="monotone" dataKey="Ramp magnitude (indexed)" stroke="#38bdf8" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="RES share % (indexed)" stroke="#fb7185" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="Ramp magnitude (indexed)" stroke="#38bdf8" strokeWidth={2} dot={false}  isAnimationActive={false}/>
+              <Line type="monotone" dataKey="RES share % (indexed)" stroke="#fb7185" strokeWidth={2} dot={false}  isAnimationActive={false}/>
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -134,7 +134,7 @@ function CorrBar({ title, bars }) {
             <YAxis type="category" dataKey="name" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#94a3b8', fontSize: 11 }} width={90} />
             <ReferenceLine x={0} stroke="rgba(255,255,255,0.25)" />
             <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(3)} />} />
-            <Bar dataKey="corr" radius={3}>
+            <Bar dataKey="corr" radius={3} isAnimationActive={false}>
               {data.map((d, i) => (
                 <Cell key={i} fill={d.corr >= 0 ? '#fb7185' : '#38bdf8'} />
               ))}

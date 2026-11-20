@@ -107,8 +107,8 @@ export default function RiskPanel({ risk }) {
             <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={pctTick} width={40} />
             <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(1) + '%'} />} />
             <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
-            <Area type="monotone" dataKey="Violation risk" stroke="#fb7185" strokeWidth={2} fill="url(#violGrad)" />
-            <Area type="monotone" dataKey="Ramp-shock risk" stroke="#38bdf8" strokeWidth={2} fill="url(#rampGrad)" />
+            <Area type="monotone" dataKey="Violation risk" stroke="#fb7185" strokeWidth={2} fill="url(#violGrad)"  isAnimationActive={false}/>
+            <Area type="monotone" dataKey="Ramp-shock risk" stroke="#38bdf8" strokeWidth={2} fill="url(#rampGrad)"  isAnimationActive={false}/>
           </AreaChart>
         </ResponsiveContainer>
       </div>

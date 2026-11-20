@@ -2,12 +2,12 @@ import { useMemo, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { SectionCard, ChartBox, ChartTooltip, Pills, Empty } from './ui'
 import { AXIS, GRID, LEGEND } from '../lib/chart'
-import { fmtDateShort, fmtDateLong, fmtNum, REGION_NAMES } from '../lib/format'
+import { fmtDateShort, fmtDateLong, fmtDayMonth, fmtNum, REGION_NAMES } from '../lib/format'
 import { REGION_LIGHT } from '../lib/colors'
 
 const REGIONS = ['NR', 'WR', 'SR', 'ER', 'NER']
 // "10 Nov": the shared short format is month and year, which reads wrong for a single day.
-const fmtDay = (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+const fmtDay = fmtDayMonth
 // Walk-forward backtest, 2024-01 to 2026-11, 1,039 forecasts per region
 // (Pipeline/docs/study1_predict_notes.md): model MAPE, and the better of two
 // naive baselines (repeat the made day, or same weekday a week earlier).

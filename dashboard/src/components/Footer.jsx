@@ -36,6 +36,9 @@ export default function Footer() {
             <Link href="https://github.com/vacanza/holidays">python-holidays</Link>: India's gazetted holidays for the forecast's holiday correction.
           </p>
           <p>
+            <Link href="https://github.com/VictorCazanave/svg-maps/tree/master/packages/india">@svg-maps/india</Link> by Victor Cazanave (CC BY 4.0): state outlines for the map.
+          </p>
+          <p>
             <Link href="https://www.kaggle.com/datasets/halcyonvector/india-power-grid-nldc-daily-psp-reports">Kaggle dataset</Link>: the cleaned data this page is built from, updated daily.
           </p>
         </Column>

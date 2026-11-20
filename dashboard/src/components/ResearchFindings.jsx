@@ -20,7 +20,7 @@ function MonthSeasonality({ monthSeasonality }) {
               <XAxis dataKey="month" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} />
               <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={pctTick} width={34} />
               <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(2) + '%'} />} />
-              <Bar dataKey="violation" radius={2}>
+              <Bar dataKey="violation" radius={2} isAnimationActive={false}>
                 {data.map((_, i) => <Cell key={i} fill="#fb7185" fillOpacity={0.5 + (0.5 * data[i].violation) / Math.max(...data.map((d) => d.violation))} />)}
               </Bar>
             </BarChart>
@@ -36,7 +36,7 @@ function MonthSeasonality({ monthSeasonality }) {
               <XAxis dataKey="month" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} />
               <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={pctTick} width={34} />
               <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(2) + '%'} />} />
-              <Bar dataKey="ramp" radius={2}>
+              <Bar dataKey="ramp" radius={2} isAnimationActive={false}>
                 {data.map((_, i) => <Cell key={i} fill="#38bdf8" fillOpacity={0.5 + (0.5 * data[i].ramp) / Math.max(...data.map((d) => d.ramp))} />)}
               </Bar>
             </BarChart>
@@ -63,8 +63,8 @@ function SolarHourRates({ solarHourRates }) {
             <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={pctTick} width={34} />
             <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(2) + '%'} />} />
             <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
-            <Bar dataKey="violation" name="Violation rate" fill="#fb7185" radius={2} />
-            <Bar dataKey="ramp" name="Ramp rate" fill="#38bdf8" radius={2} />
+            <Bar dataKey="violation" name="Violation rate" fill="#fb7185" radius={2}  isAnimationActive={false}/>
+            <Bar dataKey="ramp" name="Ramp rate" fill="#38bdf8" radius={2}  isAnimationActive={false}/>
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -87,7 +87,7 @@ function ResShareViolation({ pooledViolationByResShare }) {
             <XAxis dataKey="quintile" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} />
             <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={pctTick} width={34} />
             <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(2) + '%'} />} />
-            <Bar dataKey="violation" radius={3}>
+            <Bar dataKey="violation" radius={3} isAnimationActive={false}>
               {data.map((d, i) => <Cell key={i} fill="#fb7185" fillOpacity={0.35 + 0.65 * (d.violation / max)} />)}
             </Bar>
           </BarChart>
@@ -112,8 +112,8 @@ function RampReversal({ rampReversal }) {
             <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={pctTick} width={34} />
             <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(2) + '%'} />} />
             <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
-            <Bar dataKey="Pooled" fill="#9085e9" radius={2} />
-            <Bar dataKey="Within-month" fill="#38bdf8" radius={2} />
+            <Bar dataKey="Pooled" fill="#9085e9" radius={2}  isAnimationActive={false}/>
+            <Bar dataKey="Within-month" fill="#38bdf8" radius={2}  isAnimationActive={false}/>
           </BarChart>
         </ResponsiveContainer>
       </div>

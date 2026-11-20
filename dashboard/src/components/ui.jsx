@@ -157,9 +157,61 @@ export const TabActiveContext = createContext(true)
 // what made switching tabs freeze; with this only what is in view is built on
 // the switch, and the rest as the reader scrolls. The placeholder keeps
 // roughly the section's height so the page does not jump.
+// Sections are built one at a time, nearest the screen first. Each Recharts
+// chart ends its first render with a synchronous pass React cannot pause, so
+// when a fast scroll or a tab switch brought several sections in at once they
+// were all built in one block and the page froze for up to 1.5 s (measured
+// 2026-11-20). Now the next section starts only after the previous one is on
+// screen, and the browser gets a frame in between to scroll and paint.
+const mountQueue = new Set()
+let mounting = false
+
+function pumpMounts() {
+  if (mounting || mountQueue.size === 0) return
+  let next = null
+  let best = Infinity
+  for (const job of mountQueue) {
+    const r = job.el.getBoundingClientRect()
+    const dist = r.bottom < 0 ? -r.bottom : Math.max(0, r.top - window.innerHeight)
+    if (dist < best) {
+      best = dist
+      next = job
+    }
+  }
+  mountQueue.delete(next)
+  mounting = true
+  // Released by the section once it has rendered; the timer is a fallback.
+  next.timer = setTimeout(() => releaseMount(next), 1500)
+  next.start()
+}
+
+function releaseMount(job) {
+  if (job.released) return
+  job.released = true
+  clearTimeout(job.timer)
+  requestAnimationFrame(() =>
+    setTimeout(() => {
+      mounting = false
+      pumpMounts()
+    }, 0),
+  )
+}
+
+// Recharts' ResponsiveContainer draws its chart a frame or two after mounting,
+// once it has measured its box, and that draw is the expensive part. So a
+// section counts as built only when each of its charts has an SVG.
+function releaseWhenDrawn(job, box, frames = 0) {
+  if (job.released) return
+  const pending = box && [...box.querySelectorAll('.recharts-responsive-container')].some((c) => !c.querySelector('svg'))
+  if (pending && frames < 30) requestAnimationFrame(() => releaseWhenDrawn(job, box, frames + 1))
+  else releaseMount(job)
+}
+
 export function LazyMount({ children, minHeight = 420 }) {
   const active = useContext(TabActiveContext)
   const ref = useRef(null)
+  const job = useRef(null)
+  const box = useRef(null)
   const [show, setShow] = useState(false)
   useEffect(() => {
     if (show || !active) return
@@ -168,18 +220,31 @@ export function LazyMount({ children, minHeight = 420 }) {
       setShow(true)
       return
     }
+    const entry = {
+      el,
+      // A transition: React builds the section in small slices it can pause.
+      start: () => startTransition(() => setShow(true)),
+    }
     const io = new IntersectionObserver((entries) => {
       if (entries.some((e) => e.isIntersecting)) {
-        // A transition: React builds the section in small slices it can pause,
-        // so scrolling stays smooth while a heavy chart is put together. The
-        // margin starts that before the section reaches the screen.
-        startTransition(() => setShow(true))
         io.disconnect()
+        job.current = entry
+        mountQueue.add(entry)
+        pumpMounts()
       }
     }, { rootMargin: '600px 0px' })
     io.observe(el)
-    return () => io.disconnect()
+    return () => {
+      io.disconnect()
+      // Left the tab before its turn came: drop it, it re-queues on return.
+      if (mountQueue.delete(entry)) job.current = null
+    }
   }, [show, active])
-  if (show) return <div className="lazy-in">{children}</div>
+  // Runs after the section and its charts have committed.
+  useEffect(() => {
+    if (show && job.current) releaseWhenDrawn(job.current, box.current)
+  }, [show])
+  useEffect(() => () => job.current && releaseMount(job.current), [])
+  if (show) return <div ref={box} className="lazy-in">{children}</div>
   return <div ref={ref} style={{ minHeight }} className="rounded-3xl border border-white/6 bg-[#0d1016]/40" aria-hidden="true" />
 }

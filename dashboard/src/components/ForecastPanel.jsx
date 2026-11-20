@@ -75,8 +75,8 @@ export default function ForecastPanel({ forecast }) {
             />
             <Tooltip content={<ChartTooltip formatter={(v) => fmtMW(v)} />} />
             <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
-            <Area type="monotone" dataKey="Predicted" stroke="#a78bfa" strokeWidth={2} fill="url(#predictedGrad)" dot={{ r: 3, fill: '#a78bfa' }} />
-            <Area type="monotone" dataKey="Actual" stroke="#38bdf8" strokeWidth={2} fill="url(#actualGrad)" dot={{ r: 3, fill: '#38bdf8' }} />
+            <Area type="monotone" dataKey="Predicted" stroke="#a78bfa" strokeWidth={2} fill="url(#predictedGrad)" dot={{ r: 3, fill: '#a78bfa' }}  isAnimationActive={false}/>
+            <Area type="monotone" dataKey="Actual" stroke="#38bdf8" strokeWidth={2} fill="url(#actualGrad)" dot={{ r: 3, fill: '#38bdf8' }}  isAnimationActive={false}/>
           </AreaChart>
         </ResponsiveContainer>
       </div>

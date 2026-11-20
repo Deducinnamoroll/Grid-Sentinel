@@ -13,7 +13,7 @@ function ImportanceBar({ title, data, color }) {
             <XAxis type="number" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} />
             <YAxis type="category" dataKey="feature" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#94a3b8', fontSize: 10 }} width={130} />
             <Tooltip content={<ChartTooltip formatter={(v) => v + ' splits'} />} />
-            <Bar dataKey="importance" radius={3}>
+            <Bar dataKey="importance" radius={3} isAnimationActive={false}>
               {data.map((d, i) => (
                 <Cell key={i} fill={color} fillOpacity={0.4 + 0.6 * (d.importance / max)} />
               ))}

@@ -91,6 +91,28 @@ The States tab map is [`@svg-maps/india`](https://github.com/VictorCazanave/svg-
 by Victor Cazanave, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/),
 recoloured. The credit also appears under the map on the page.
 
+### Keeping scrolling and tab switches smooth
+
+Measured on 2026-11-20 with a headless Chrome script that scrolls and switches
+tabs as fast as a reader can. Each change below fixed a freeze it found.
+
+- Every visited tab stays mounted, hidden, so going back to it costs nothing.
+- Lower sections are wrapped in `LazyMount` (`src/components/ui.jsx`) and
+  built only as they come near the screen, one at a time and nearest first.
+  Each section waits until its charts have drawn before the next one starts,
+  because each Recharts chart ends with a pass React cannot pause, and
+  building several at once froze the page for up to 1.5 s.
+- Chart animations are off (`isAnimationActive={false}` on every series):
+  an animating chart redraws on every frame while the reader scrolls.
+- The number and date formatters in `src/lib/format.js` reuse one `Intl`
+  formatter each. Building a new one per call cost 1.2 s in the test, the
+  largest single item.
+
+Result at normal CPU speed: the longest freeze while switching tabs fast went
+from 1.1 s to 0.3 s and total blocking time roughly halved. The daily charts
+with a zoom strip (full history, corridor flows, frequency variation index)
+still plot every day of 4 to 8 years and are the slowest sections left.
+
 ### Colours
 
 Multi-series charts use one fixed categorical order (`src/lib/colors.js`),

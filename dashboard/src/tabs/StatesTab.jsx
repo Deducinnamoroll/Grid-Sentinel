@@ -7,7 +7,7 @@ import RegionsPanel from '../components/RegionsPanel'
 import { SectionCard, ChartBox, Pills, Select, Empty, ChartTooltip } from '../components/ui'
 import { AXIS, GRID } from '../lib/chart'
 import { zipColumns } from '../lib/data'
-import { fmtMonth, fmtNum, fmtMW, REGION_NAMES } from '../lib/format'
+import { fmtDayMonth, fmtMonth, fmtNum, fmtMW, REGION_NAMES } from '../lib/format'
 import { sequentialRamp, diverging, SEQ_GRADIENT, DIV_GRADIENT, NO_DATA, REGION_COLORS, REGION_LIGHT } from '../lib/colors'
 
 // study3 entity name (as cleaned by build_dashboard_data.py) -> map polygon
@@ -259,7 +259,7 @@ function StateForecast({ fc, state, color }) {
     [fc],
   )
   if (!fc) return null
-  const day = (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+  const day = fmtDayMonth
   const live = fc.live
   const baselines = live ? [live.latestDayMape, live.lastWeekMape].filter((v) => v !== null) : []
   const better = baselines.length > 0 && live.mape < Math.min(...baselines)
