@@ -81,7 +81,7 @@ export function ChartTooltip({ active, payload, label, formatter }) {
 // panels draw inline, with an optional uppercase caption and right-side note.
 export function ChartBox({ title, note, children, className = '' }) {
   return (
-    <div className={`rounded-2xl border border-white/8 bg-black/20 p-4 ${className}`}>
+    <div className={`min-w-0 rounded-2xl border border-white/8 bg-black/20 p-4 ${className}`}>
       {(title || note) && (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs font-medium uppercase tracking-wider text-slate-500">
           <span>{title}</span>

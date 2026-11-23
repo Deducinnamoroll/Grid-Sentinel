@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import DrawalPanel from '../components/DrawalPanel'
 import { SectionCard, StatCard, StatGrid, ChartBox, ChartTooltip } from '../components/ui'
-import { AXIS, GRID, LEGEND } from '../lib/chart'
+import { AXIS, GRID, LEGEND, DATE_AXIS } from '../lib/chart'
 import { zipColumns } from '../lib/data'
 import { fmtMonth, fmtNum, fmtPct, fmtMW, fmtDateShort, fmtDateLong, REGION_NAMES, pctTick } from '../lib/format'
 import { REGION_COLORS, CAT } from '../lib/colors'
@@ -44,7 +44,7 @@ function RegionBars({ title, cols, unit, digits, height = 'h-72' }) {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
             <CartesianGrid {...GRID} />
-            <XAxis dataKey="label" {...AXIS} interval={Math.max(0, Math.floor(rows.length / 9))} />
+            <XAxis dataKey="label" {...AXIS} {...DATE_AXIS} />
             <YAxis {...AXIS} tickFormatter={kTick} width={44} />
             <Tooltip content={<ChartTooltip formatter={(v) => (v === null ? 'N/A' : `${fmtNum(v, digits)} ${unit}`)} />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
             <Legend {...LEGEND} />
@@ -83,7 +83,7 @@ export default function ReliabilityTab({ data }) {
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={bands} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid {...GRID} />
-                <XAxis dataKey="label" {...AXIS} interval={Math.max(0, Math.floor(bands.length / 9))} />
+                <XAxis dataKey="label" {...AXIS} {...DATE_AXIS} />
                 <YAxis {...AXIS} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} allowDataOverflow tickFormatter={pctTick} width={40} />
                 <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(1) + '%'} />} />
                 <Legend {...LEGEND} />

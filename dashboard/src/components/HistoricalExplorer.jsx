@@ -4,6 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine, Brush,
 } from 'recharts'
 import { SectionCard, Empty, ChartTooltip } from './ui'
+import { DATE_AXIS } from '../lib/chart'
 import { fmtDateShort, index0to100, shortCorridorName, pctTick } from '../lib/format'
 
 const TABS = [
@@ -34,7 +35,7 @@ function FullHistory({ history }) {
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-              <XAxis dataKey="date" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} interval={Math.floor(demandData.length / 8)} />
+              <XAxis dataKey="date" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} {...DATE_AXIS} />
               <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={(v) => Math.round(v / 1000) + 'k'} width={44} />
               <Tooltip content={<ChartTooltip formatter={(v) => Math.round(v).toLocaleString('en-IN') + ' MW'} />} />
               <Area type="monotone" dataKey="Demand" stroke="#38bdf8" strokeWidth={1.5} fill="url(#demandHistGrad)" dot={false} isAnimationActive={false} />
@@ -66,7 +67,7 @@ function FullHistory({ history }) {
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-              <XAxis dataKey="date" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} interval={Math.floor(resData.length / 8)} />
+              <XAxis dataKey="date" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 10 }} {...DATE_AXIS} />
               <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={pctTick} width={40} />
               <Tooltip content={<ChartTooltip formatter={(v) => (v === null ? 'N/A' : v.toFixed(1) + '%')} />} />
               <Area type="monotone" dataKey="RES share" stroke="#fbbf24" strokeWidth={1.5} fill="url(#resHistGrad)" dot={false} isAnimationActive={false} />
@@ -107,7 +108,7 @@ function Era1Tab({ era1Monthly }) {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-              <XAxis dataKey="month" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 11 }} interval={4} />
+              <XAxis dataKey="month" stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 11 }} {...DATE_AXIS} />
               <YAxis domain={[0, 100]} stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 11 }} width={30} />
               <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(0)} />} />
               <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />

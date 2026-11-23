@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import PeakTimingPanel from '../components/PeakTimingPanel'
 import { SectionCard, StatCard, StatGrid, ChartBox, Select, Empty, ChartTooltip } from '../components/ui'
-import { AXIS, GRID, LEGEND } from '../lib/chart'
+import { AXIS, GRID, LEGEND, DATE_AXIS, TIME_AXIS } from '../lib/chart'
 import { zipColumns } from '../lib/data'
 import { fmtMonth, fmtNum, fmtPct, fmtMW, fmtDateLong, REGION_NAMES, pctTick } from '../lib/format'
 import { SOURCE_COLORS, CAT } from '../lib/colors'
@@ -65,7 +65,7 @@ function DuckCurve({ duck }) {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid {...GRID} />
-              <XAxis dataKey="time" {...AXIS} interval={11} />
+              <XAxis dataKey="time" {...AXIS} {...TIME_AXIS} />
               <YAxis {...AXIS} tickFormatter={kTick} width={44} />
               <Tooltip content={<ChartTooltip formatter={(v) => fmtMW(v)} />} />
               <Legend {...LEGEND} />
@@ -123,7 +123,7 @@ export default function RenewablesTab({ data }) {
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={monthly} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid {...GRID} />
-                <XAxis dataKey="label" {...AXIS} interval={Math.max(0, Math.floor(monthly.length / 9))} />
+                <XAxis dataKey="label" {...AXIS} {...DATE_AXIS} />
                 <YAxis {...AXIS} width={44} />
                 <Tooltip content={<ChartTooltip formatter={(v) => fmtNum(v, 1) + ' MU/day'} />} />
                 <Legend {...LEGEND} />
@@ -137,17 +137,17 @@ export default function RenewablesTab({ data }) {
         </ChartBox>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <ChartBox title="Share of generation (%), monthly">
+          <ChartBox title="Share of generation (%), monthly" note="Non-fossil: RES, hydro and nuclear. RES: solar, wind and other renewables">
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={monthly} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                   <CartesianGrid {...GRID} />
-                  <XAxis dataKey="label" {...AXIS} interval={Math.max(0, Math.floor(monthly.length / 5))} />
+                  <XAxis dataKey="label" {...AXIS} {...DATE_AXIS} />
                   <YAxis {...AXIS} tickFormatter={pctTick} width={40} />
                   <Tooltip content={<ChartTooltip formatter={(v) => (v === null ? 'N/A' : v.toFixed(1) + '%')} />} />
                   <Legend {...LEGEND} />
-                  <Line type="monotone" dataKey="nonFossilShare" name="Non-fossil (RES + hydro + nuclear)" stroke={CAT[3]} strokeWidth={2} dot={false} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="resShare" name="RES (solar, wind, other renewables)" stroke={CAT[1]} strokeWidth={2} dot={false} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="nonFossilShare" name="Non-fossil" stroke={CAT[3]} strokeWidth={2} dot={false} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="resShare" name="RES" stroke={CAT[1]} strokeWidth={2} dot={false} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>

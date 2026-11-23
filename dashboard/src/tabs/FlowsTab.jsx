@@ -5,7 +5,7 @@ import {
   ReferenceLine, Brush,
 } from 'recharts'
 import { SectionCard, StatCard, StatGrid, ChartBox, Pills, Empty, ChartTooltip } from '../components/ui'
-import { AXIS, GRID, LEGEND } from '../lib/chart'
+import { AXIS, GRID, LEGEND, DATE_AXIS } from '../lib/chart'
 import { zipColumns } from '../lib/data'
 import { fmtDateShort, fmtDateLong, fmtMonth, fmtNum, REGION_NAMES } from '../lib/format'
 import { COUNTRY_COLORS } from '../lib/colors'
@@ -177,7 +177,7 @@ function CrossBorder({ xbMonthly, xbLatest }) {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={rows} stackOffset="sign" margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid {...GRID} />
-                <XAxis dataKey="month" {...AXIS} interval={Math.max(0, Math.floor(rows.length / 10))} />
+                <XAxis dataKey="month" {...AXIS} {...DATE_AXIS} />
                 <YAxis {...AXIS} width={40} />
                 <ReferenceLine y={0} stroke="rgba(255,255,255,0.35)" />
                 <Tooltip content={<ChartTooltip formatter={(v) => (v === null ? 'N/A' : `${v > 0 ? '+' : ''}${fmtNum(v, 2)} MU/day`)} />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />

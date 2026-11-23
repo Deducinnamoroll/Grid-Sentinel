@@ -58,10 +58,14 @@ export default function Footer() {
           <strong className="font-semibold text-slate-300">Abhirami</strong>{' '}
           (<Link href="https://github.com/menaegerie">@menaegerie</Link>)
         </span>
-        <span className="mx-2.5 text-slate-600" aria-hidden="true">·</span>
-        <Link href={REPO}>Repository</Link>
-        <span className="mx-2.5 text-slate-600" aria-hidden="true">·</span>
-        <Link href={`${REPO}/blob/main/LICENSE`}>MIT License</Link>
+        {/* On a phone the links take their own line, so no separator dot is
+            left dangling at the start of it. */}
+        <span className="mx-2.5 hidden text-slate-600 sm:inline" aria-hidden="true">·</span>
+        <span className="w-full sm:w-auto">
+          <Link href={REPO}>Repository</Link>
+          <span className="mx-2.5 text-slate-600" aria-hidden="true">·</span>
+          <Link href={`${REPO}/blob/main/LICENSE`}>MIT License</Link>
+        </span>
       </div>
     </footer>
   )

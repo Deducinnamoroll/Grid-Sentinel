@@ -19,7 +19,7 @@ function Grid({ title, hours, values, colorFrom, colorTo, formatter }) {
         <div className="inline-grid gap-[2px]" style={{ gridTemplateColumns: `32px repeat(${hours.length}, 1fr)` }}>
           <div />
           {hours.map((h) => (
-            <div key={h} className="text-center text-[9px] text-slate-600">
+            <div key={h} className="text-center text-[10px] text-slate-600">
               {h % 3 === 0 ? h : ''}
             </div>
           ))}

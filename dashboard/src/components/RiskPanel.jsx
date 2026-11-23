@@ -1,6 +1,7 @@
 import { pctTick } from '../lib/format'
 import { useMemo, useState } from 'react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { TIME_AXIS } from '../lib/chart'
 import { SectionCard, StatCard, StatGrid, Empty, ChartTooltip } from './ui'
 
 export default function RiskPanel({ risk }) {
@@ -102,7 +103,7 @@ export default function RiskPanel({ risk }) {
               dataKey="time"
               stroke="rgba(255,255,255,0.3)"
               tick={{ fill: '#64748b', fontSize: 11 }}
-              interval={11}
+              {...TIME_AXIS}
             />
             <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={pctTick} width={40} />
             <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(1) + '%'} />} />

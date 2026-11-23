@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ComposedChart, Area, Line, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts'
 import { SectionCard, ChartBox, ChartTooltip, Empty } from './ui'
-import { AXIS, GRID, LEGEND } from '../lib/chart'
+import { AXIS, GRID, LEGEND, TIME_AXIS } from '../lib/chart'
 import { fmtDateLong, fmtNum } from '../lib/format'
 
 // Stacked bottom to top: steady baseload first, weather-driven sources last.
@@ -35,13 +35,6 @@ function loadMonth(month) {
 }
 
 const kTick = (v) => Math.round(v / 1000) + 'k'
-// A label every three hours; on a narrow screen the ones that would overlap are
-// skipped, so a phone shows every six hours instead of a run-together strip.
-const TIME_AXIS = {
-  ticks: ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'],
-  interval: 'preserveStart',
-  minTickGap: 12,
-}
 
 function shiftDay(date, n) {
   const d = new Date(date + 'T00:00:00Z')

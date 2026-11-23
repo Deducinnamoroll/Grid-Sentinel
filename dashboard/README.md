@@ -113,6 +113,25 @@ from 1.1 s to 0.3 s and total blocking time roughly halved. The daily charts
 with a zoom strip (full history, corridor flows, frequency variation index)
 still plot every day of 4 to 8 years and are the slowest sections left.
 
+### Phone layout
+
+Checked on 2026-11-23 at 320, 375, 768 and 1280 px wide with a headless Chrome
+script that opens every tab, scrolls it at reading speed and checks for
+anything wider than the screen, overlapping axis labels, text under 10 px and
+buttons under 28 px. All four widths pass. What it found and fixed:
+
+- Date axes used a fixed "every nth label" spacing, which ran together on a
+  phone in 12 charts. They now use `DATE_AXIS` from `src/lib/chart.js`, where
+  Recharts drops the labels that would overlap; 15-minute day axes use
+  `TIME_AXIS` (every 3 hours, every 6 on a phone).
+- The peak-hour heatmap had a 640 px minimum width, so on a phone the midday
+  and evening peaks were off-screen. It now fits the screen.
+- Chart boxes get `min-w-0`, so a chart in a two-column grid measures its own
+  column rather than its content.
+- The "Other grid entities" table scrolls instead of wrapping numbers, the
+  region filter buttons are taller, and the footer's links take their own
+  line on a phone.
+
 ### Colours
 
 Multi-series charts use one fixed categorical order (`src/lib/colors.js`),

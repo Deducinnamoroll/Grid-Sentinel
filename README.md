@@ -225,7 +225,7 @@ Correctness is checked in code and on the data itself:
 - [x] State-level demand forecasts from `study3_states` (2026-11-12)
 - [x] A small unit-test suite for the parsers, with one fixture report per format era (2026-11-12)
 - [ ] Regional festival calendars (Ganesh Chaturthi, Pongal, Onam, Durga Puja) for the regional and state holiday corrections
-- [ ] Check and tune the dashboard layout on phones
+- [x] Check and tune the dashboard layout on phones (2026-11-23)
 
 ---
 

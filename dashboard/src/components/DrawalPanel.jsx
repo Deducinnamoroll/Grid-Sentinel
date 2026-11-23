@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts'
 import { SectionCard, ChartBox, ChartTooltip, Pills } from './ui'
-import { AXIS, GRID, LEGEND } from '../lib/chart'
+import { AXIS, GRID, LEGEND, DATE_AXIS } from '../lib/chart'
 import { zipColumns } from '../lib/data'
 import { fmtMonth, fmtNum, fmtDateLong, REGION_NAMES } from '../lib/format'
 import { REGION_LIGHT } from '../lib/colors'
@@ -39,7 +39,7 @@ export default function DrawalPanel({ drawal }) {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid {...GRID} />
-              <XAxis dataKey="label" {...AXIS} interval={Math.max(0, Math.floor(rows.length / 9))} />
+              <XAxis dataKey="label" {...AXIS} {...DATE_AXIS} />
               <YAxis {...AXIS} width={44} />
               <ReferenceLine y={0} stroke="rgba(255,255,255,0.25)" />
               <Tooltip content={<ChartTooltip formatter={(v) => (v === null ? 'N/A' : `${fmtNum(v, 2)} MU/day`)} />} />

@@ -5,7 +5,7 @@ import india from '@svg-maps/india'
 import StatePanel from '../components/StatePanel'
 import RegionsPanel from '../components/RegionsPanel'
 import { SectionCard, ChartBox, Pills, Select, Empty, ChartTooltip } from '../components/ui'
-import { AXIS, GRID } from '../lib/chart'
+import { AXIS, GRID, DATE_AXIS } from '../lib/chart'
 import { zipColumns } from '../lib/data'
 import { fmtDayMonth, fmtMonth, fmtNum, fmtMW, REGION_NAMES } from '../lib/format'
 import { sequentialRamp, diverging, SEQ_GRADIENT, DIV_GRADIENT, NO_DATA, REGION_COLORS, REGION_LIGHT } from '../lib/colors'
@@ -71,7 +71,7 @@ function RegionFilter({ value, onChange, counts }) {
             key={o.id}
             type="button"
             onClick={() => onChange(o.id)}
-            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition ${
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
               active ? 'text-slate-100' : 'border-white/8 bg-white/[0.02] text-slate-400 hover:border-white/20 hover:text-slate-200'
             }`}
             style={active ? { borderColor: color, background: `${color}2e` } : undefined}
@@ -331,7 +331,7 @@ function StateTrend({ data, selected, onSelect }) {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={shown} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid {...GRID} />
-                <XAxis dataKey="month" {...AXIS} interval={Math.max(0, Math.floor(shown.length / 8))} />
+                <XAxis dataKey="month" {...AXIS} {...DATE_AXIS} />
                 <YAxis {...AXIS} tickFormatter={metric.tick} width={48} />
                 <Tooltip content={<ChartTooltip formatter={(v) => (v === null ? 'N/A' : metric.fmt(v))} />} />
                 <Line type="monotone" dataKey="value" name={metric.label} stroke={lineColor} strokeWidth={2} dot={false} isAnimationActive={false} />
@@ -358,7 +358,7 @@ function OtherEntities({ entities }) {
       accent="emerald"
     >
       <div className="overflow-x-auto">
-        <table className="w-full text-xs">
+        <table className="w-full min-w-[420px] whitespace-nowrap text-xs">
           <thead className="text-left text-[11px] uppercase tracking-wider text-slate-500">
             <tr>
               <th className="py-1.5 font-medium">Entity</th>

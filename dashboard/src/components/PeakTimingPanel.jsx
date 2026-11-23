@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { SectionCard, ChartBox, ChartTooltip } from './ui'
-import { AXIS, GRID, LEGEND } from '../lib/chart'
+import { AXIS, GRID, LEGEND, DATE_AXIS } from '../lib/chart'
 import { zipColumns } from '../lib/data'
 import { fmtMonth, fmtNum, pctTick } from '../lib/format'
 
@@ -11,11 +11,13 @@ function HourGrid({ months, counts }) {
   // Rows: months; columns: hour of day; shade = share of that month's days
   // whose national peak fell in that hour.
   return (
+    // Fits a phone without scrolling sideways: the evening and midday peaks
+    // were off-screen behind a 640 px minimum width (found 2026-11-23).
     <div className="overflow-x-auto">
-      <div className="min-w-[640px]">
+      <div className="sm:min-w-[640px]">
         <div className="ml-14 grid grid-cols-24 gap-px text-[10px] text-slate-500" style={{ gridTemplateColumns: 'repeat(24, minmax(0, 1fr))' }}>
           {Array.from({ length: 24 }, (_, h) => (
-            <div key={h} className="text-center">{h % 3 === 0 ? String(h).padStart(2, '0') : ''}</div>
+            <div key={h} className={`text-center ${h % 6 ? 'invisible sm:visible' : ''}`}>{h % 3 === 0 ? String(h).padStart(2, '0') : ''}</div>
           ))}
         </div>
         {months.map((m, i) => {
@@ -66,7 +68,7 @@ export default function PeakTimingPanel({ timing }) {
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid {...GRID} />
-              <XAxis dataKey="label" {...AXIS} interval={Math.max(0, Math.floor(rows.length / 9))} />
+              <XAxis dataKey="label" {...AXIS} {...DATE_AXIS} />
               <YAxis yAxisId="mw" {...AXIS} tickFormatter={kTick} width={44} domain={['auto', 'auto']} />
               <YAxis yAxisId="pct" orientation="right" {...AXIS} domain={[0, 100]} tickFormatter={pctTick} width={40} />
               <Tooltip content={<ChartTooltip formatter={fmt} />} />
@@ -84,7 +86,7 @@ export default function PeakTimingPanel({ timing }) {
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid {...GRID} />
-              <XAxis dataKey="label" {...AXIS} interval={Math.max(0, Math.floor(rows.length / 9))} />
+              <XAxis dataKey="label" {...AXIS} {...DATE_AXIS} />
               <YAxis {...AXIS} width={44} />
               <Tooltip content={<ChartTooltip formatter={fmt} />} />
               <Legend {...LEGEND} />
